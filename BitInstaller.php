@@ -26,6 +26,14 @@ class BitInstaller extends BitSystem {
 	var $mRequirements = array();
 
 	/**
+	 * mServices
+	 *
+	 * @var array
+	 * @access public
+	 */
+	var $mServices = array();
+
+	/**
 	 * Initiolize BitInstaller 
 	 * @access public
 	 */
@@ -595,7 +603,7 @@ class BitInstaller extends BitSystem {
 	 * loadPackagePluginsSchemas
 	 */
 	function loadPackagePluginSchemas( $pPackageName ){
-		if( $paths = $this->getPackagePluginPaths( $pPackageName ) ){
+		if( $paths = LibertySystem::getPackagePluginPaths( $pPackageName ) ){
 			foreach( $paths as $path ){
 				$this->loadPluginSchemasAtPath( $path );
 			}
@@ -609,11 +617,23 @@ class BitInstaller extends BitSystem {
 	function loadPluginSchemasAtPath( $pPluginsPath ){
         if( is_dir( $pPluginsPath ) && $plugins = opendir( $pPluginsPath )) {
             while( FALSE !== ( $pluginDir = readdir( $plugins ) ) ) {
-				if( is_dir( $pluginDir ) && is_file( $pPluginsPath.$pluginDir.'schema_inc.php' ) ) {
-                    include_once( $pPluginsPath.$pluginDir.'schema_inc.php' );
+				if( is_dir( $pPluginsPath.$pluginDir ) && is_file( $pPluginsPath.$pluginDir.'/schema_inc.php' ) ) {
+                    include_once( $pPluginsPath.$pluginDir.'/schema_inc.php' );
                 }
             }
         }
+	}
+
+	/**
+	 * registerServicePreferences
+	 * @param pServiceGuid service type guids
+	 * @param pContentTypes mixed content type guids
+	 */
+	function registerServicePreferences( $pServiceGuid, $pContentTypes ){
+		if( empty( $this->mServices[$pServiceGuid] ) ){
+			$this->mServices[$pServiceGuid] = array();
+		}
+		$this->mServices[$pServiceGuid] = array_merge( $this->mServices[$pServiceGuid], $pContentTypes );
 	}
 }
 
