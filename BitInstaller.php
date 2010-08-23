@@ -590,6 +590,31 @@ class BitInstaller extends BitSystem {
 		}
 		return $ret;
 	}
+
+	/**
+	 * loadPackagePluginsSchemas
+	 */
+	function loadPackagePluginSchemas( $pPackageName ){
+		if( $paths = $this->getPackagePluginPaths( $pPackageName ) ){
+			foreach( $paths as $path ){
+				$this->loadPluginSchemasAtPath( $path );
+			}
+		}
+	}
+
+	/**
+	 * loadPluginSchemasAtPath
+	 * @see BitInstaller::loadPackagePluginSchemas
+	 */
+	function loadPluginSchemasAtPath( $pPluginsPath ){
+        if( is_dir( $pPluginsPath ) && $plugins = opendir( $pPluginsPath )) {
+            while( FALSE !== ( $pluginDir = readdir( $plugins ) ) ) {
+				if( is_dir( $pluginDir ) && is_file( $pPluginsPath.$pluginDir.'schema_inc.php' ) ) {
+                    include_once( $pPluginsPath.$pluginDir.'schema_inc.php' );
+                }
+            }
+        }
+	}
 }
 
 /**
