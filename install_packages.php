@@ -26,6 +26,8 @@ $gBitSmarty->assign( 'next_step', $step );
 $schema = $gBitInstaller->mPackages;
 ksort( $schema );
 $gBitSmarty->assign_by_ref( 'schema', $schema );
+// pass service plugin data to template
+$gBitSmarty->assign_by_ref( 'servicePlugins', $gBitInstaller->mServices );
 
 // confirm that we have all the admin data in the session before proceeding
 if( !empty( $_REQUEST['packages'] ) && in_array( 'users', $_REQUEST['packages'] ) && ( empty( $_SESSION['login'] ) || empty( $_SESSION['password'] ) || empty( $_SESSION['email'] ) ) ) {
@@ -34,8 +36,10 @@ if( !empty( $_REQUEST['packages'] ) && in_array( 'users', $_REQUEST['packages'] 
 	die;
 }
 
+// cancel
 if( !empty( $_REQUEST['cancel'] ) ) {
 	header( 'Location: '.INSTALL_PKG_URL.'install.php?step='.( $step + 1 ) );
+// process packages 
 } elseif( !empty( $_REQUEST['packages'] ) && is_array( $_REQUEST['packages'] ) && !empty( $_REQUEST['method'] ) && !empty( $_REQUEST['submit_packages'] ) ) {
 	// shorthand for the actions we are supposed to perform during an unistall or re-install
 	$removeActions = !empty( $_REQUEST['remove_actions'] ) ? $_REQUEST['remove_actions'] : array();
@@ -439,6 +443,32 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 
 		// ---------------------- 7. ----------------------
+		// set lcconfig service configurations for all content types of installed packages
+		// @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense
+		require_once( LCCONFIG_PKG_PATH.'LCConfig.php' );
+		require_once( LIBERTY_PKG_PATH.'LibertySystem.php' );
+		$LCConfig = LCConfig::getInstance();
+		$LSys = new LibertySystem();
+		$LSys->loadContentTypes();
+		foreach( $_REQUEST['package_plugins'] as $pkg=>$services ){
+			foreach( $services as $plugin_guid ){
+				if( !empty($gBitInstaller->mServices[$pkg]) && 
+					in_array( $plugin_guid, array_keys( $gBitInstaller->mServices[$pkg] ) ) )
+				{
+					foreach( array_keys( $LSys->mContentTypes ) as $ctype ) {
+						// currently LCConfig prefers to store a negation - tho it can store a possitive association as well
+						if( !in_array( $ctype, $gBitInstaller->mServices[$pkg][$plugin_guid] ) ){
+							$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'n');
+						}else{
+							$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'y');
+						}
+					}
+				}
+			}
+		}
+
+
+		// ---------------------- 8. ----------------------
 		// Do stuff that only applies during the first install
 		if( isset( $_SESSION['first_install'] ) && $_SESSION['first_install'] == TRUE ) {
 			// set the version of bitweaver in the database
@@ -533,7 +563,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 
 
-		// ---------------------- 8. ----------------------
+		// ---------------------- 9. ----------------------
 		// woo! we're done with the installation bit - below here is some generic installer stuff
 		$gBitSmarty->assign( 'next_step', $step + 1 );
 
@@ -577,4 +607,3 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 	$gBitSmarty->assign( 'next_step', $step + 1 );
 	$app = '_done';
 }
-?>

@@ -7,10 +7,7 @@
 <br />
 {if $error}
 	{legend legend="Administrator Data Missing"}
-		<p class="error">
-			Unfortunately there seems to be a problem with your installation. We can't find the administrator information you entered.
-		</p>
-
+		<p class="error">Unfortunately there seems to be a problem with your installation. We can't find the administrator information you entered.</p>
 		<p>Please go back one step (using the link to your right, rather than the back button on your browser) and enter the administrator data again. If this is the second time you see this screen, please confirm that PHP can write sessions and that any firewall/anti-virus software is turned off during the installation process.</p>
 		<p>If you just can't figure out what the hell is going on, please contact the Bitweaver team via <a href="http://www.bitweaver.org/wiki/Live+Support">IRC</a> if possible or post to the forums on <a href="http://www.bitweaver.org">bitweaver.org</a>.</p>
 	{/legend}
@@ -86,6 +83,30 @@
 						</code><br />
 					</p>
 				{/if}
+
+				{* package service plugins *}
+				{* @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense *}
+				{if $servicePlugins}
+					<h2>Package Plugins</h2>
+					{foreach from=$servicePlugins key=package item=packageServices}
+					<div class="row">
+						<div class="formlabel">
+							<label for="{$package}">{biticon ipackage=$package iname="pkg_$package" iexplain=`$package`}</label>
+						</div>
+						{forminput}
+							<label><strong>{$package|ucfirst}</strong></label>
+						{/forminput}
+						{foreach from=$packageServices key=service item=ctypes}
+						{forminput}
+							<label>
+								<input type="checkbox" name="package_plugins[{$package}][]" value="{$service}" checked="checked" />&nbsp;
+								<strong>{$service|capitalize}</strong>
+							</label>
+						{/forminput}
+						{/foreach}
+					{/foreach}
+				{/if}
+
 				<div class="row submit">
 					Please press this button only once.<br />
 					Depending on the number of packages and the hardware,<br />
