@@ -445,22 +445,24 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		// ---------------------- 7. ----------------------
 		// set lcconfig service configurations for all content types of installed packages
 		// @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense
-		require_once( LCCONFIG_PKG_PATH.'LCConfig.php' );
-		require_once( LIBERTY_PKG_PATH.'LibertySystem.php' );
-		$LCConfig = LCConfig::getInstance();
-		$LSys = new LibertySystem();
-		$LSys->loadContentTypes();
-		foreach( $_REQUEST['package_plugins'] as $pkg=>$services ){
-			foreach( $services as $plugin_guid ){
-				if( !empty($gBitInstaller->mServices[$pkg]) && 
-					in_array( $plugin_guid, array_keys( $gBitInstaller->mServices[$pkg] ) ) )
-				{
-					foreach( array_keys( $LSys->mContentTypes ) as $ctype ) {
-						// currently LCConfig prefers to store a negation - tho it can store a possitive association as well
-						if( !in_array( $ctype, $gBitInstaller->mServices[$pkg][$plugin_guid] ) ){
-							$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'n');
-						}else{
-							$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'y');
+		if( !empty( $_REQUEST['package_plugins'] ) ){
+			require_once( LCCONFIG_PKG_PATH.'LCConfig.php' );
+			require_once( LIBERTY_PKG_PATH.'LibertySystem.php' );
+			$LCConfig = LCConfig::getInstance();
+			$LSys = new LibertySystem();
+			$LSys->loadContentTypes();
+			foreach( $_REQUEST['package_plugins'] as $pkg=>$services ){
+				foreach( $services as $plugin_guid ){
+					if( !empty($gBitInstaller->mServices[$pkg]) && 
+						in_array( $plugin_guid, array_keys( $gBitInstaller->mServices[$pkg] ) ) )
+					{
+						foreach( array_keys( $LSys->mContentTypes ) as $ctype ) {
+							// currently LCConfig prefers to store a negation - tho it can store a possitive association as well
+							if( !in_array( $ctype, $gBitInstaller->mServices[$pkg][$plugin_guid] ) ){
+								$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'n');
+							}else{
+								$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'y');
+							}
 						}
 					}
 				}
