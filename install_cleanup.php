@@ -80,8 +80,8 @@ $gBitSmarty->assign( 'insPerms', $insPerms );
 // flattens the array so that there is one and only one service set per
 // service type. This could revert back with time. For now this is commented
 // out.
-/*
 $serviceList = array();
+/*
 if( !empty( $gLibertySystem->mServices ) ) {
 	foreach( $gLibertySystem->mServices as $service_name => $service ) {
 		if( count( $service ) > 1 ) {
