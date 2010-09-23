@@ -33,7 +33,7 @@
 	</div>
 
 	<div class="row">
-		{formlabel label="Site Style"}
+		{formlabel label="Site Theme"}
 		{forminput}
 			{$gBitSystem->getConfig('style')}
 		{/forminput}

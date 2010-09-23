@@ -56,7 +56,7 @@
 	</div>
 
 	<div class="row">
-		{formlabel label="Site Style" for="site_style"}
+		{formlabel label="Site Theme" for="site_style"}
 		{forminput}
 			<select name="site_style" id="site_style">
 				{foreach from=$stylesList item=s}
