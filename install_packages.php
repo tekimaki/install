@@ -120,144 +120,28 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		sort( $_REQUEST['packages'] );
 
 
-
 		// Need to unquote constraints. but this need replacing with a datadict function
 		require_once('../kernel/BitDbBase.php');
 		$gBitKernelDb = new BitDb();
 		$gBitKernelDb->mType = $gBitDbType;
 
 		// ---------------------- 1. ----------------------
-		// let's generate all the tables's
-		foreach( array_keys( $gBitInstaller->mPackages ) as $package ) {
+		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+			// prep packageHash
+			$packageHash['name'] = $package;
+
 			if( in_array( $package, $_REQUEST['packages'] )) {
-				unset( $build );
-				// work out what we're going to do with this package
-				if ( $method == 'install' && $_SESSION['first_install'] ) {
-					$build = array( 'NEW' );
-				} elseif( $method == "install" && empty( $gBitInstaller->mPackages[$package]['installed'] )) {
-					$build = array( 'NEW' );
-				} elseif( $method == "reinstall" && !empty( $gBitInstaller->mPackages[$package]['installed'] ) && in_array( 'tables', $removeActions )) {
-					// only set $build if we want to reset the tables - this allows us to reset a package to it's starting values without deleting any content
-					$build = array( 'REPLACE' );
-				} elseif( $method == "uninstall" && !empty( $gBitInstaller->mPackages[$package]['installed'] ) && in_array( 'tables', $removeActions )) {
-					$build = array( 'DROP' );
-				}
-				// If we use MySql and not DROP anything
-				// set correct storage engine to use
-				if( isset( $_SESSION['use_innodb'] ) && isset( $build ) &&  $build['0'] != 'DROP' ){
-					if( $_SESSION['use_innodb'] == TRUE) {
-						$build = array_merge($build, array('MYSQL' => 'ENGINE=INNODB'));
-					} else {
-						$build = array_merge($build, array('MYSQL' => 'ENGINE=MYISAM'));
-					}
-				}
-				// Install tables - $build is empty when we don't pick tables, when un / reinstalling packages
-				if( !empty( $gBitInstaller->mPackages[$package]['tables'] ) && is_array( $gBitInstaller->mPackages[$package]['tables'] ) && !empty( $build )) {
-					foreach( array_keys( $gBitInstaller->mPackages[$package]['tables'] ) as $tableName ) {
-						$completeTableName = $tablePrefix.$tableName;
-						// in case prefix has backticks for schema
-						$sql = $dict->CreateTableSQL( $completeTableName, $gBitInstaller->mPackages[$package]['tables'][$tableName], $build );
-						// Uncomment this line to see the create sql
-						for( $sqlIdx = 0; $sqlIdx < count( $sql ); $sqlIdx++ ) {
-							$gBitKernelDb->convertQuery( $sql[$sqlIdx] );
-						}
-						if( $sql && $dict->ExecuteSQLArray( $sql ) <= 1) {
-							$errors[] = 'Failed to create table '.$completeTableName;
-							$failedcommands[] = implode(" ", $sql);
-						}
-					}
-				}
+				// generate all the tables's
+				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $errors );
+
+				// install additional constraints
+				$gBitInstaller->installPackageConstraints( $packageHash, $method, $errors );
+
+				// generate all the indexes, and sequences
+				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $errors );
 			}
 		}
 
-
-
-		// ---------------------- 2. ----------------------
-		// install additional constraints
-		foreach( array_keys( $gBitInstaller->mPackages ) as $package ) {
-			if( in_array( $package, $_REQUEST['packages'] ) && ($method == 'install' || $method == 'reinstall' )
-				&& !empty( $gBitInstaller->mPackages[$package]['constraints'] ) && is_array( $gBitInstaller->mPackages[$package]['constraints'] ) ) {
-				foreach( array_keys($gBitInstaller->mPackages[$package]['constraints']) as $tableName ) {
-					$completeTableName = $tablePrefix.$tableName;
-					foreach( array_keys($gBitInstaller->mPackages[$package]['constraints'][$tableName]) as $constraintName ) {
-						$sql = 'ALTER TABLE `'.$completeTableName.'` ADD CONSTRAINT `'.$constraintName.'` '.$gBitInstaller->mPackages[$package]['constraints'][$tableName][$constraintName];
-						$gBitKernelDb->convertQuery($sql);
-						$ret = $gBitInstallDb->Execute( $sql );
-						if ( $ret === false ) {
-							$errors[] = 'Failed to add constraint '.$constraintName.' to table '.$completeTableName;
-							$failedcommands[] = $sql;
-						}
-					}
-				}
-			}
-		}
-
-
-
-		// ---------------------- 3. ----------------------
-		// let's generate all the indexes, and sequences
-		foreach( array_keys( $gBitInstaller->mPackages ) as $package ) {
-			if( in_array( $package, $_REQUEST['packages'] ) ) {
-				// set prefix
-				$schemaQuote = strrpos( BIT_DB_PREFIX, '`' );
-				$sequencePrefix = ( $schemaQuote ? substr( BIT_DB_PREFIX,  $schemaQuote + 1 ) : BIT_DB_PREFIX );
-
-				if( $method == 'install' || ( $method == 'reinstall' && in_array( 'tables', $removeActions ))) {
-					// Install Indexes
-					if( isset( $gBitInstaller->mPackages[$package]['indexes'] ) && is_array( $gBitInstaller->mPackages[$package]['indexes'] ) ) {
-						foreach( array_keys( $gBitInstaller->mPackages[$package]['indexes'] ) as $tableIdx ) {
-							$completeTableName = $sequencePrefix.$gBitInstaller->mPackages[$package]['indexes'][$tableIdx]['table'];
-
-							$sql = $dict->CreateIndexSQL( $tableIdx, $completeTableName, $gBitInstaller->mPackages[$package]['indexes'][$tableIdx]['cols'], $gBitInstaller->mPackages[$package]['indexes'][$tableIdx]['opts'] );
-							if( $sql && $dict->ExecuteSQLArray( $sql ) <= 1) {
-								$errors[] = 'Failed to create index '.$tableIdx." on ".$completeTableName;
-								$failedcommands[] = implode(" ", $sql);
-							}
-						}
-					}
-
-					if( $method == 'reinstall' && in_array( 'tables', $removeActions )) {
-						if( isset( $gBitInstaller->mPackages[$package]['sequences'] ) && is_array( $gBitInstaller->mPackages[$package]['sequences'] ) ) {
-							foreach( array_keys( $gBitInstaller->mPackages[$package]['sequences'] ) as $sequenceIdx ) {
-								$sql = $gBitInstallDb->DropSequence( $sequencePrefix.$sequenceIdx );
-								if (!$sql) {
-									$errors[] = 'Failed to drop sequence '.$sequencePrefix.$sequenceIdx;
-									$failedcommands[] = "DROP SEQUENCE ".$sequencePrefix.$sequenceIdx;
-								}
-							}
-						}
-					}
-
-					if( isset( $gBitInstaller->mPackages[$package]['sequences'] ) && is_array( $gBitInstaller->mPackages[$package]['sequences'] ) ) {
-						// If we use InnoDB for MySql we need this to get sequence tables created correctly.
-						if( isset( $_SESSION['use_innodb'] ) ) {
-							if( $_SESSION['use_innodb'] == TRUE ) {
-								$gBitInstallDb->_genSeqSQL = "create table %s (id int not null) ENGINE=INNODB";
-							} else {
-								$gBitInstallDb->_genSeqSQL = "create table %s (id int not null) ENGINE=MYISAM";
-							}
-						}
-						foreach( array_keys( $gBitInstaller->mPackages[$package]['sequences'] ) as $sequenceIdx ) {
-							$sql = $gBitInstallDb->CreateSequence( $sequencePrefix.$sequenceIdx, $gBitInstaller->mPackages[$package]['sequences'][$sequenceIdx]['start'] );
-							if (!$sql) {
-								$errors[] = 'Failed to create sequence '.$sequencePrefix.$sequenceIdx;
-								$failedcommands[] = "CREATE SEQUENCE ".$sequencePrefix.$sequenceIdx." START ".$gBitInstaller->mPackages[$package]['sequences'][$sequenceIdx]['start'];
-							}
-						}
-					}
-				} elseif( $method == 'uninstall' && in_array( 'tables', $removeActions )) {
-					if( isset( $gBitInstaller->mPackages[$package]['sequences'] ) && is_array( $gBitInstaller->mPackages[$package]['sequences'] ) ) {
-						foreach( array_keys( $gBitInstaller->mPackages[$package]['sequences'] ) as $sequenceIdx ) {
-							$sql = $gBitInstallDb->DropSequence( $sequencePrefix.$sequenceIdx );
-							if (!$sql) {
-								$errors[] = 'Failed to drop sequence '.$sequencePrefix.$sequenceIdx;
-								$failedcommands[] = "DROP SEQUENCE ".$sequencePrefix.$sequenceIdx;
-							}
-						}
-					}
-				}
-			}
-		}
 		// Force a reload of all our preferences
 		$gBitInstaller->mPrefs = '';
 		$gBitInstaller->loadConfig();
