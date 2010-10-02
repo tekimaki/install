@@ -147,135 +147,20 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitInstaller->loadConfig();
 
 
-
 		// ---------------------- 4. ----------------------
 		// manipulate the data in kernel_config
-		foreach( array_keys( $gBitInstaller->mPackages ) as $package ) {
+		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+			// prep packageHash
+			$packageHash['name'] = $package;
+
 			if( in_array( $package, $_REQUEST['packages'] ) ) {
-				// remove all the requested settings - this is a bit tricky and might require some more testing
-				// Remove settings if requested
-				if( in_array( 'settings', $removeActions ) ) {
-					// get a list of permissions used by this package
-					$query = "SELECT `perm_name` FROM `".$tablePrefix."users_permissions` WHERE `package`=?";
-					$perms = $gBitInstaller->mDb->getCol( $query, array( $package ));
-					// we deal with liberty_content_permissions below
-					$tables = array( 'users_group_permissions', 'users_permissions' );
-					foreach( $tables as $table ) {
-						foreach( $perms as $perm ) {
-							$delete = "
-								DELETE FROM `".$tablePrefix.$table."`
-								WHERE `perm_name`=?";
-							$ret = $gBitInstaller->mDb->query( $delete, array( $perm ) );
-							if (!$ret) {
-								$errors[] = "Error deleting permission ". $perm;
-								$failedcommands[] = $delete." ".$perm;
-							}
-						}
-					}
+				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $errors );
 
-					// list of tables where we store package specific settings
-					$tables = array( 'kernel_config' );
-					foreach( $tables as $table ) {
-						$delete = "
-							DELETE FROM `".$tablePrefix.$table."`
-							WHERE `package`=? OR `config_name` LIKE ?";
-						$ret = $gBitInstaller->mDb->query( $delete, array( $package, $package."%" ));
-						if (!$ret) {
-							$errors[] = "Error deleting confgis for package ". $package;
-							$failedcommands[] = $delete." ".$package;
-						}
-					}
-				}
-
-				// now we can start removing content if requested
-				// lots of foreach loops in here
-				if( in_array( 'content', $removeActions ) ) {
-					// first we need to work out the package specific content details
-					foreach( $gLibertySystem->mContentTypes as $contentType ) {
-						if( $contentType['handler_package'] == $package ) {
-							// first we get a list of content_ids which we can use to scan various tables without content_type_guid column for data
-							$query = "SELECT `content_id` FROM `".$tablePrefix."liberty_content` WHERE `content_type_guid`=?";
-							$rmContentIds = $gBitInstaller->mDb->getCol( $query, array( $contentType['content_type_guid'] ));
-
-							// list of core tables where bitweaver might store relevant data
-							// firstly, we delete using the content ids
-							// order is important due to the constraints set in the schema
-							$tables = array(
-								'liberty_aliases'             => 'content_id',
-								'liberty_structures'          => 'content_id',
-								'liberty_content_hits'        => 'content_id',
-								'liberty_content_history'     => 'content_id',
-								'liberty_content_prefs'       => 'content_id',
-								'liberty_content_links'       => 'to_content_id',
-								'liberty_content_links'       => 'from_content_id',
-								'liberty_process_queue'       => 'content_id',
-								'liberty_content_permissions' => 'content_id',
-								'users_favorites_map'         => 'favorite_content_id'
-								// This table needs to be fixed to use content_id instead of page_id
-								//'liberty_copyrights'          => 'content_id',
-
-								// liberty comments are tricky. should we remove comments linked to the content being deleted?
-								// makes sense to me but only if boards are not installed - xing
-								//'liberty_comments'            => 'root_id',
-							);
-							foreach( $rmContentIds as $contentId ) {
-								foreach( $tables as $table => $column ) {
-									$delete = "
-										DELETE FROM `".$tablePrefix.$table."`
-										WHERE `$column`=?";
-									$ret = $gBitInstaller->mDb->query( $delete, array( $contentId ));
-									if (!$ret) {
-										$errors[] = "Error deleting from ". $tablePrefxi.$table;
-										$failedcommands[] = $delete." ".$contentId;
-									}
-								}
-							}
-							// TODO: get a list of tables that have a liberty_content.content_id constraint and delete those entries that we can
-							// remove the entries from liberty_content in the next step
-							// one such example is stars and stars_history - we need to automagically recognise tables with such constraints.
-
-							// TODO: we need an option to physically remove files from the server when we uninstall stuff like fisheye and treasury
-							// i think we'll need to call the appropriate expunge function but i'm too tired to work out how or where to get that info from
-
-							// secondly, we delete using the content type guid
-							// order is important due to the constraints set in the schema
-							$tables = array(
-								'liberty_content',
-								'liberty_content_types'
-							);
-							foreach( $tables as $table ) {
-								$delete = "
-									DELETE FROM `".$tablePrefix.$table."`
-									WHERE `content_type_guid`=?";
-								$ret = $gBitInstaller->mDb->query( $delete, array( $contentType['content_type_guid'] ));
-								if (!$ret) {
-									$errors[] = "Error deleting content type";
-									$failedcommands[] = $delete." ".$contentType['content_type_guid'];
-								}
-							}
-						}
-					}
-				}
+				$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions, $errors );
 
 				// set installed packages active
 				if( $method == 'install' || $method == 'reinstall' ) {
-					// apparently we need to first remove the vaue from the database to make sure it's set
-					$gBitSystem->storeConfig( 'package_'.$package , NULL );
-					$gBitSystem->storeConfig( 'package_'.$package , 'y', $package );
-
-					// we can assume that the latest upgrade version available for a package is the most current version number for that package
-					if( $version = $gBitInstaller->getLatestUpgradeVersion( $package )) {
-						$gBitSystem->storeVersion( $package, $version );
-					} elseif( !empty( $gBitInstaller->mPackages[$package]['version'] )) {
-						$gBitSystem->storeVersion( $package, $gBitInstaller->mPackages[$package]['version'] );
-					}
-
-					$gBitInstaller->mPackages[ $package ]['installed'] = TRUE;
-					$gBitInstaller->mPackages[ $package ]['active_switch'] = TRUE;
-					// we'll default wiki to the home page
-					if( defined( 'WIKI_PKG_NAME' ) && $package == WIKI_PKG_NAME && !$gBitSystem->isFeatureActive( 'bit_index' )) {
-						$gBitSystem->storeConfig( "bit_index", WIKI_PKG_NAME, WIKI_PKG_NAME );
-					}
+					$gBitInstaller->setPackageActive( $packageHash );
 				}
 			}
 		}
