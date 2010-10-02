@@ -41,6 +41,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 	header( 'Location: '.INSTALL_PKG_URL.'install.php?step='.( $step + 1 ) );
 // process packages 
 } elseif( !empty( $_REQUEST['packages'] ) && is_array( $_REQUEST['packages'] ) && !empty( $_REQUEST['method'] ) && !empty( $_REQUEST['submit_packages'] ) ) {
+	$failedcommands = array();
+
 	// shorthand for the actions we are supposed to perform during an unistall or re-install
 	$removeActions = !empty( $_REQUEST['remove_actions'] ) ? $_REQUEST['remove_actions'] : array();
 
@@ -132,13 +134,13 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 			if( in_array( $package, $_REQUEST['packages'] )) {
 				// generate all the tables's
-				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $errors );
+				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $errors, $failedcommands );
 
 				// install additional constraints
-				$gBitInstaller->installPackageConstraints( $packageHash, $method, $errors );
+				$gBitInstaller->installPackageConstraints( $packageHash, $method, $errors, $failedcommands );
 
 				// generate all the indexes, and sequences
-				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $errors );
+				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $errors, $failedcommands );
 			}
 		}
 
@@ -147,16 +149,16 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitInstaller->loadConfig();
 
 
-		// ---------------------- 4. ----------------------
+		// ---------------------- 2. ----------------------
 		// manipulate the data in kernel_config
 		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
 			// prep packageHash
 			$packageHash['name'] = $package;
 
 			if( in_array( $package, $_REQUEST['packages'] ) ) {
-				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $errors );
+				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $errors, $failedcommands );
 
-				$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions, $errors );
+				$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions, $errors, $failedcommands );
 
 				// set installed packages active
 				if( $method == 'install' || $method == 'reinstall' ) {
@@ -171,26 +173,14 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 
 
-		// ---------------------- 5. ----------------------
+		// ---------------------- 3. ----------------------
 		// run the defaults through afterwards so we can be sure all tables needed have been created
-		foreach( array_keys( $gBitInstaller->mPackages ) as $package ) {
-			if( !empty( $package )) {
-				if( in_array( $package, $_REQUEST['packages'] ) || ( empty( $gBitInstaller->mPackages[$package]['installed'] ) && !empty( $gBitInstaller->mPackages[$package]['required'] ) ) ) {
-					if( $method == 'install' || ( $method == 'reinstall' && in_array( 'settings', $removeActions ))) {
-						// this list of installed packages is used to show newly installed packages
-						if( !empty( $gBitInstaller->mPackages[$package]['defaults'] ) ) {
-							foreach( $gBitInstaller->mPackages[$package]['defaults'] as $def ) {
-								if( $gBitInstaller->mDb->mType == 'firebird' ) {
-									$def = preg_replace( "/\\\'/", "''", $def );
-								}
-								$ret = $gBitInstaller->mDb->query( $def );
-								if (!$ret) {
-									$errors[] = "Error setting defaults";
-									$failedcommands[] = $def;
-								}
-							}
-						}
-					}
+		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+			if( !empty( $package )) {  // this line doesnt make sense -wjames
+				if( in_array( $package, $_REQUEST['packages'] ) || ( empty( $packageHash['installed'] ) && !empty( $packageHash['required'] ) ) ) {
+
+					$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $errors, $failedcommands );
+
 					// this is to list any processed packages
 					$packageList[$method][] = $package;
 				}
@@ -198,20 +188,12 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		}
 
 
-
-		// ---------------------- 6. ----------------------
+		// ---------------------- 4. ----------------------
 		// register all content types for installed packages
-		foreach( $gBitInstaller->mContentClasses as $package => $classes ){
-			if ( $gBitInstaller->isPackageInstalled( $package ) ){
-				foreach ( $classes as $objectClass=>$classFile ){
-					require_once( $classFile );
-					$tempObject = new $objectClass();
-				}
-			}
-		}
+		$gBitInstaller->registerContentTypes();
 
 
-		// ---------------------- 7. ----------------------
+		// ---------------------- 5. ----------------------
 		// set lcconfig service configurations for all content types of installed packages
 		// @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense
 		if( !empty( $_REQUEST['package_plugins'] ) ){
@@ -239,7 +221,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		}
 
 
-		// ---------------------- 8. ----------------------
+		// ---------------------- 6. ----------------------
 		// Do stuff that only applies during the first install
 		if( isset( $_SESSION['first_install'] ) && $_SESSION['first_install'] == TRUE ) {
 			// set the version of bitweaver in the database
@@ -334,7 +316,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 
 
-		// ---------------------- 9. ----------------------
+		// ---------------------- 7. ----------------------
 		// woo! we're done with the installation bit - below here is some generic installer stuff
 		$gBitSmarty->assign( 'next_step', $step + 1 );
 

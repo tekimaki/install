@@ -620,7 +620,7 @@ class BitInstaller extends BitSystem {
 	/** 
 	 * installPackageTable
 	 */
-	function installPackageTables( $pPackageHash, $pMethod, $pRemoveActions, &$errors ){
+	function installPackageTables( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
 		global $gBitSystem;
 		$package = $pPackageHash['name'];
 		// work out what we're going to do with this package
@@ -661,7 +661,7 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function installPackageConstraints( $pPackageHash, $pMethod, $pRemoveActions, &$errors ){
+	function installPackageConstraints( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
 		if( ($pMethod == 'install' || $pMethod == 'reinstall' )
 			&& !empty( $pPackageHash['constraints'] ) && is_array( $pPackageHash['constraints'] ) 
 		) {
@@ -680,7 +680,7 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function installPackageIndexes( $pPackageHash, $pMethod, $pRemoveActions, &$errors ){
+	function installPackageIndexes( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
 		// set prefix
 		$schemaQuote = strrpos( BIT_DB_PREFIX, '`' );
 		$sequencePrefix = ( $schemaQuote ? substr( BIT_DB_PREFIX,  $schemaQuote + 1 ) : BIT_DB_PREFIX );
@@ -741,7 +741,7 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions, &$errors ){
+	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
 		$package = $pPackageHash['name'];
 		// remove all the requested settings - this is a bit tricky and might require some more testing
 		// Remove settings if requested
@@ -779,7 +779,7 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function expungePackageContent( $pPackageHash, $pMethod, $pRemoveActions, &$errors ){
+	function expungePackageContent( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
 		$package = $pPackageHash['name'];
 		// now we can start removing content if requested
 		// lots of foreach loops in here
@@ -872,6 +872,35 @@ class BitInstaller extends BitSystem {
 		// we'll default wiki to the home page
 		if( defined( 'WIKI_PKG_NAME' ) && $package == WIKI_PKG_NAME && !$gBitSystem->isFeatureActive( 'bit_index' )) {
 			$gBitSystem->storeConfig( "bit_index", WIKI_PKG_NAME, WIKI_PKG_NAME );
+		}
+	}
+
+	function installPackageDefaults( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){ 
+		if( $pMethod == 'install' || ( $pMethod == 'reinstall' && in_array( 'settings', $pRemoveActions ))) {
+			// this list of installed packages is used to show newly installed packages
+			if( !empty( $pPackageHash['defaults'] ) ) {
+				foreach( $pPackageHash['defaults'] as $def ) {
+					if( $this->mDb->mType == 'firebird' ) {
+						$def = preg_replace( "/\\\'/", "''", $def );
+					}
+					$ret = $this->mDb->query( $def );
+					if (!$ret) {
+						$errors[] = "Error setting defaults";
+						$failedcommands[] = $def;
+					}
+				}
+			}
+		}
+	}
+
+	function registerContentTypes(){
+		foreach( $this->mContentClasses as $package => $classes ){
+			if ( $this->isPackageInstalled( $package ) ){
+				foreach ( $classes as $objectClass=>$classFile ){
+					require_once( $classFile );
+					$tempObject = new $objectClass();
+				}
+			}
 		}
 	}
 
