@@ -49,8 +49,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 	// make sure that required pkgs are only present when we are installing
 	if(( $method = ( $_REQUEST['method'] )) == 'install' && !$_SESSION['first_install'] ) {
 		// make sure no required packages are included in this list
-		foreach( array_keys( $gBitInstaller->mPackages ) as $package ) {
-			if( in_array( $package, $_REQUEST['packages'] ) && !empty( $gBitInstaller->mPackages[$package]['required'] )) {
+		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+			if( in_array( $package, $_REQUEST['packages'] ) && !empty( $packageHash['required'] )) {
 				$gBitSmarty->assign( 'warning', "Something unexpected has happened: One of the required packages has appeared in the list of selected packages. This generally only happens if the installation is missing a core database table. Please contact the bitweaver developers team on how to proceed." );
 				$method = FALSE;
 			}
@@ -66,6 +66,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		ini_set('sybct.min_server_severity', '11');
 	}
 
+	global $gBitInstallDb;
 	$gBitInstallDb = &ADONewConnection( $gBitDbType );
 
 	if( !empty( $gDebug ) || !empty( $_REQUEST['debug'] ) ) {
@@ -80,8 +81,6 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 //			$result = $gBitInstallDb->Execute( "DECLARE EXTERNAL FUNCTION LOWER CSTRING(80) RETURNS CSTRING(80) FREE_IT ENTRY_POINT 'IB_UDF_lower' MODULE_NAME 'ib_udf'" );
 //			$result = $gBitInstallDb->Execute( "DECLARE EXTERNAL FUNCTION RAND RETURNS DOUBLE PRECISION BY VALUE ENTRY_POINT 'IB_UDF_rand' MODULE_NAME 'ib_udf'" );
 		}
-
-		$tablePrefix = $gBitInstaller->getTablePrefix();
 
 		$dict = NewDataDictionary( $gBitInstallDb );
 
@@ -124,6 +123,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 		// Need to unquote constraints. but this need replacing with a datadict function
 		require_once('../kernel/BitDbBase.php');
+		global $gBitKernelDb;
 		$gBitKernelDb = new BitDb();
 		$gBitKernelDb->mType = $gBitDbType;
 
@@ -134,13 +134,13 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 			if( in_array( $package, $_REQUEST['packages'] )) {
 				// generate all the tables's
-				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $errors, $failedcommands );
+				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
 				// install additional constraints
-				$gBitInstaller->installPackageConstraints( $packageHash, $method, $errors, $failedcommands );
+				$gBitInstaller->installPackageConstraints( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
 				// generate all the indexes, and sequences
-				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $errors, $failedcommands );
+				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 			}
 		}
 
@@ -156,9 +156,9 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			$packageHash['name'] = $package;
 
 			if( in_array( $package, $_REQUEST['packages'] ) ) {
-				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $errors, $failedcommands );
+				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
-				$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions, $errors, $failedcommands );
+				$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
 				// set installed packages active
 				if( $method == 'install' || $method == 'reinstall' ) {
@@ -179,7 +179,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			if( !empty( $package )) {  // this line doesnt make sense -wjames
 				if( in_array( $package, $_REQUEST['packages'] ) || ( empty( $packageHash['installed'] ) && !empty( $packageHash['required'] ) ) ) {
 
-					$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $errors, $failedcommands );
+					$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
 					// this is to list any processed packages
 					$packageList[$method][] = $package;

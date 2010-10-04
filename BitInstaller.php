@@ -611,7 +611,7 @@ class BitInstaller extends BitSystem {
 	/**
 	 * loadPackagesSchemas
 	 *
-	 * scans all packages and loads there schema.yaml file
+	 * scans all packages and loads their schema.yaml file
 	 */
 	function loadPackagesSchemas(){
 		$this->mPackagesSchemas = $this->getPackagesSchemas();
@@ -620,9 +620,11 @@ class BitInstaller extends BitSystem {
 	/** 
 	 * installPackageTable
 	 */
-	function installPackageTables( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
-		global $gBitSystem;
+	function installPackageTables( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+		global $gBitSystem, $gBitKernelDb;
 		$package = $pPackageHash['name'];
+		$tablePrefix = $this->getTablePrefix();
+
 		// work out what we're going to do with this package
 		if ( $pMethod == 'install' && $_SESSION['first_install'] ) {
 			$build = array( 'NEW' );
@@ -661,7 +663,10 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function installPackageConstraints( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
+	function installPackageConstraints( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+		global $gBitKernelDb, $gBitInstallDb;
+		$tablePrefix = $this->getTablePrefix();
+
 		if( ($pMethod == 'install' || $pMethod == 'reinstall' )
 			&& !empty( $pPackageHash['constraints'] ) && is_array( $pPackageHash['constraints'] ) 
 		) {
@@ -680,7 +685,8 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function installPackageIndexes( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
+	function installPackageIndexes( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+		global $gBitInstallDb;
 		// set prefix
 		$schemaQuote = strrpos( BIT_DB_PREFIX, '`' );
 		$sequencePrefix = ( $schemaQuote ? substr( BIT_DB_PREFIX,  $schemaQuote + 1 ) : BIT_DB_PREFIX );
@@ -741,8 +747,10 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
+	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
 		$package = $pPackageHash['name'];
+		$tablePrefix = $this->getTablePrefix();
+
 		// remove all the requested settings - this is a bit tricky and might require some more testing
 		// Remove settings if requested
 		if( in_array( 'settings', $pRemoveActions ) ) {
@@ -779,8 +787,10 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function expungePackageContent( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){
+	function expungePackageContent( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
 		$package = $pPackageHash['name'];
+		$tablePrefix = $this->getTablePrefix();
+
 		// now we can start removing content if requested
 		// lots of foreach loops in here
 		if( in_array( 'content', $pRemoveActions ) ) {
@@ -875,7 +885,7 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function installPackageDefaults( $pPackageHash, $pMethod, $pRemoveActions, &$errors, &$failedcommands ){ 
+	function installPackageDefaults( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){ 
 		if( $pMethod == 'install' || ( $pMethod == 'reinstall' && in_array( 'settings', $pRemoveActions ))) {
 			// this list of installed packages is used to show newly installed packages
 			if( !empty( $pPackageHash['defaults'] ) ) {
