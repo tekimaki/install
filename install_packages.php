@@ -128,16 +128,22 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitKernelDb->mType = $gBitDbType;
 
 		// ---------------------- 1. ----------------------
+		// Do all tables first so that we avoid chicken egg problems
+		// with constraints between packages, particularly liberty &
+		// users packages.
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] )) {
 				// generate all the tables's
 				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+				// generate all the indexes, and sequences
+				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+			}
+		}
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
+			if( in_array( $package, $_REQUEST['packages'] )) {
 
 				// install additional constraints
 				$gBitInstaller->installPackageConstraints( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
-
-				// generate all the indexes, and sequences
-				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 			}
 		}
 
