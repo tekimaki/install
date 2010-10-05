@@ -129,9 +129,6 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 		// ---------------------- 1. ----------------------
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
-			// prep packageHash
-			$packageHash['guid'] = $package;
-
 			if( in_array( $package, $_REQUEST['packages'] )) {
 				// generate all the tables's
 				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
@@ -152,9 +149,6 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		// ---------------------- 2. ----------------------
 		// manipulate the data in kernel_config
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
-			// prep packageHash
-			$packageHash['guid'] = $package;
-
 			if( in_array( $package, $_REQUEST['packages'] ) ) {
 				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
@@ -180,6 +174,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 				if( in_array( $package, $_REQUEST['packages'] ) || ( empty( $packageHash['installed'] ) && !empty( $packageHash['required'] ) ) ) {
 
 					$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+
+					$gBitInstaller->installPackagePreferences( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
 					// this is to list any processed packages
 					$packageList[$method][] = $package;

@@ -901,6 +901,17 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
+	function installPackagePreferences( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+		global $gBitSystem;
+		if( $pMethod == 'install' || ( $pMethod == 'reinstall' && in_array( 'settings', $pRemoveActions ))) {
+			if( !empty( $pPackageHash['preferences'] ) ) {
+				foreach( $pPackageHash['preferences'] as $name=>$value ){
+					$gBitSystem->storeConfig( $name, $value, $pPackageHash['guid'] );
+				}
+			}
+		}
+	}
+
 	function registerContentTypes(){
 		foreach( $this->mPackagesSchemas as $package=>$packageHash ) {
 			if ( $this->isPackageInstalled2( $package ) && !empty( $packageHash['contenttypes'] ) ){
