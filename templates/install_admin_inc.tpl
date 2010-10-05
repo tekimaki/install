@@ -51,7 +51,7 @@
 	<div class="row">
 		{formlabel label="Email Transport" for="testemail"}
 		{forminput}
-			<input type="checkbox" name="testemail" id="testemail" value="y" checked="checked" />
+			<input type="checkbox" name="testemail" id="testemail" value="y" />
 			{formhelp note="Check this box to send a test email to the above address. This will let you know if the mailing system is working."}
 		{/forminput}
 	</div>
