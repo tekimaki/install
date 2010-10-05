@@ -622,7 +622,7 @@ class BitInstaller extends BitSystem {
 	 */
 	function installPackageTables( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
 		global $gBitSystem, $gBitKernelDb;
-		$package = $pPackageHash['name'];
+		$package = $pPackageHash['guid'];
 		$tablePrefix = $this->getTablePrefix();
 
 		// work out what we're going to do with this package
@@ -748,7 +748,7 @@ class BitInstaller extends BitSystem {
 	}
 
 	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
-		$package = $pPackageHash['name'];
+		$package = $pPackageHash['guid'];
 		$tablePrefix = $this->getTablePrefix();
 
 		// remove all the requested settings - this is a bit tricky and might require some more testing
@@ -784,11 +784,19 @@ class BitInstaller extends BitSystem {
 					$failedcommands[] = $delete." ".$package;
 				}
 			}
+
+			// delete from the master package table
+			$delete2 = "DELETE FROM `".$tablePrefix."packages` WHERE `guid`=?";
+			$ret2 = $this->mDb->query( $delete, array( $package, $package."%" ));
+			if (!$ret2) {
+				$errors[] = "Error deleting registration of package ". $package;
+				$failedcommands[] = $delete." ".$package;
+			}
 		}
 	}
 
 	function expungePackageContent( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
-		$package = $pPackageHash['name'];
+		$package = $pPackageHash['guid'];
 		$tablePrefix = $this->getTablePrefix();
 
 		// now we can start removing content if requested
@@ -864,23 +872,13 @@ class BitInstaller extends BitSystem {
 
 	function setPackageActive( $pPackageHash ){
 		global $gBitSystem;
+		
+		$pPackageHash['active'] = 'y';
+		$gBitSystem->storePackage( $pPackageHash );
 
-		$package = $pPackageHash['name'];
-		// apparently we need to first remove the vaue from the database to make sure it's set
-		$gBitSystem->storeConfig( 'package_'.$package , NULL );
-		$gBitSystem->storeConfig( 'package_'.$package , 'y', $package );
-
-		// we can assume that the latest upgrade version available for a package is the most current version number for that package
-		if( $version = $this->getLatestUpgradeVersion( $package )) {
-			$gBitSystem->storeVersion( $package, $version );
-		} elseif( !empty( $pPackageHash['version'] )) {
-			$gBitSystem->storeVersion( $package, $pPackageHash['version'] );
-		}
-
-		$pPackageHash['installed'] = TRUE;
-		$pPackageHash['active_switch'] = TRUE;
+		// @TODO Depreacate this - only accept defaul home from form
 		// we'll default wiki to the home page
-		if( defined( 'WIKI_PKG_NAME' ) && $package == WIKI_PKG_NAME && !$gBitSystem->isFeatureActive( 'bit_index' )) {
+		if( defined( 'WIKI_PKG_NAME' ) && $pPackageHash['guid'] == WIKI_PKG_NAME && !$gBitSystem->isFeatureActive( 'bit_index' )) {
 			$gBitSystem->storeConfig( "bit_index", WIKI_PKG_NAME, WIKI_PKG_NAME );
 		}
 	}
@@ -904,10 +902,10 @@ class BitInstaller extends BitSystem {
 	}
 
 	function registerContentTypes(){
-		foreach( $this->mContentClasses as $package => $classes ){
-			if ( $this->isPackageInstalled( $package ) ){
-				foreach ( $classes as $objectClass=>$classFile ){
-					require_once( $classFile );
+		foreach( $this->mPackagesSchemas as $package=>$packageHash ) {
+			if ( $this->isPackageInstalled2( $package ) && !empty( $packageHash['contenttypes'] ) ){
+				foreach ( $packageHash['contenttypes'] as $objectClass=>$classFile ){
+					require_once( $packageHash['path'].$classFile );
 					$tempObject = new $objectClass();
 				}
 			}

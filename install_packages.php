@@ -23,7 +23,7 @@ ini_set( "max_execution_time", "86400" );
 $gBitSmarty->assign( 'next_step', $step );
 
 // pass all package data to template
-$schema = $gBitInstaller->mPackages;
+$schema = $gBitInstaller->mPackagesSchemas;
 ksort( $schema );
 $gBitSmarty->assign_by_ref( 'schema', $schema );
 // pass service plugin data to template
@@ -49,7 +49,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 	// make sure that required pkgs are only present when we are installing
 	if(( $method = ( $_REQUEST['method'] )) == 'install' && !$_SESSION['first_install'] ) {
 		// make sure no required packages are included in this list
-		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] ) && !empty( $packageHash['required'] )) {
 				$gBitSmarty->assign( 'warning', "Something unexpected has happened: One of the required packages has appeared in the list of selected packages. This generally only happens if the installation is missing a core database table. Please contact the bitweaver developers team on how to proceed." );
 				$method = FALSE;
@@ -116,7 +116,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 		//error_reporting( E_ALL );
 		// packages are sorted alphabetically. but we really need a /etc/rc.d/rc.3 style loading precidence!
-		// We perform several loops through mPackages due to foreign keys, and some packages may insert
+		// We perform several loops through mPackagesSchemas due to foreign keys, and some packages may insert
 		// value into other packages tables - typically users_permissions, bit_preferences, etc...
 		sort( $_REQUEST['packages'] );
 
@@ -128,9 +128,9 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitKernelDb->mType = $gBitDbType;
 
 		// ---------------------- 1. ----------------------
-		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			// prep packageHash
-			$packageHash['name'] = $package;
+			$packageHash['guid'] = $package;
 
 			if( in_array( $package, $_REQUEST['packages'] )) {
 				// generate all the tables's
@@ -145,15 +145,15 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		}
 
 		// Force a reload of all our preferences
-		$gBitInstaller->mPrefs = '';
-		$gBitInstaller->loadConfig();
+		// $gBitInstaller->mPrefs = '';
+		// $gBitInstaller->loadConfig();
 
 
 		// ---------------------- 2. ----------------------
 		// manipulate the data in kernel_config
-		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			// prep packageHash
-			$packageHash['name'] = $package;
+			$packageHash['guid'] = $package;
 
 			if( in_array( $package, $_REQUEST['packages'] ) ) {
 				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
@@ -175,7 +175,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 		// ---------------------- 3. ----------------------
 		// run the defaults through afterwards so we can be sure all tables needed have been created
-		foreach( $gBitInstaller->mPackages as $package=>$packageHash ) {
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( !empty( $package )) {  // this line doesnt make sense -wjames
 				if( in_array( $package, $_REQUEST['packages'] ) || ( empty( $packageHash['installed'] ) && !empty( $packageHash['required'] ) ) ) {
 

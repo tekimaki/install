@@ -110,15 +110,11 @@ $gBitInstaller = new BitInstaller();
 // default style is set in kernel/config_defaults.php
 //$gBitThemes->setStyle( DEFAULT_THEME );
 
-// IF DB has not been created yet, then packages will not have been scanned yet.
-// and even if they have been scanned, then they will only include active packages,
-// not all packages. So we scan again here including all packages.
-$gBitSystem->scanPackages( 'bit_setup_inc.php', TRUE, 'all', TRUE, TRUE );
-
-$gBitInstaller->mPackages = $gBitSystem->mPackages;
+$gBitInstaller->loadPackagesSchemas();
 
 // we need this massive array available during install to work out if bitweaver has already been installed
 // this array is so massive that it will kill system with too little memory allocated to php
+// @TODO replace with checks of table schemas
 $dbTables = $gBitInstaller->verifyInstalledPackages( 'all' );
 
 // set prefs to display help during install
