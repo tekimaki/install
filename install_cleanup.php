@@ -8,7 +8,7 @@
 // assign next step in installation process
 $gBitSmarty->assign( 'next_step', $step );
 
-$schema = $gBitInstaller->mPackages;
+$schema = $gBitInstaller->mPackagesSchemas;
 ksort( $schema );
 $gBitSmarty->assign_by_ref( 'schema', $schema );
 
@@ -25,27 +25,30 @@ $dbIntegrity = install_check_database_integrity( $dbTables );
 // ===================== Permissions =====================
 // check all permissions, compare them to each other and see if there are old 
 // permissions and ones that need to be inserted
+$bitPerms = array();
 $query = "SELECT * FROM `".BIT_DB_PREFIX."users_permissions` ORDER BY `package` ASC";
 $result = $gBitInstaller->mDb->query( $query );
-while( !$result->EOF ) {
+while ($res = $result->fetchRow()) {
+	/*
 	foreach( $result->fields as $r ) {
 		$bitPerms[$result->fields['perm_name']][] = $r;
 	}
-	$bitPerms[$result->fields['perm_name']]['sql'][] = "DELETE FROM `".BIT_DB_PREFIX."users_group_permissions` WHERE `perm_name`='".$result->fields['perm_name']."'";
-	$bitPerms[$result->fields['perm_name']]['sql'][] = "DELETE FROM `".BIT_DB_PREFIX."users_permissions` WHERE `perm_name`='".$result->fields['perm_name']."'";
-	$result->MoveNext();
+	 */
+	$bitPerms[$res['perm_name']] = $res;
+	$bitPerms[$res['perm_name']]['sql'][] = "DELETE FROM `".BIT_DB_PREFIX."users_group_permissions` WHERE `perm_name`='".$res['perm_name']."'";
+	$bitPerms[$res['perm_name']]['sql'][] = "DELETE FROM `".BIT_DB_PREFIX."users_permissions` WHERE `perm_name`='".$res['perm_name']."'";
 }
 
 // we will make sure all the permission levels are what they should be. we will 
 // update these without consulting the user. this is purely backend stuff, has 
 // no outcome on the site itself but determines what the default permission 
 // level is. the user can never modify these settings.
-foreach( array_keys( $gBitInstaller->mPermHash ) as $perm ) {
+foreach( $gBitInstaller->mPermissionsSchema as $perm => $permHash ){
 	// permission level is stored in [2]
 	$bindVars = array();
-	if( !empty( $bitPerms[$perm] ) && $gBitInstaller->mPermHash[$perm][2] != $bitPerms[$perm][2] ) {
+	if( !empty( $bitPerms[$perm] ) && $permHash['level'] != $bitPerms[$perm]['perm_level'] ) {
 		$query = "UPDATE `".BIT_DB_PREFIX."users_permissions` SET `perm_level` = ? WHERE `perm_name` = ?";
-		$bindVars[] = $gBitInstaller->mPermHash[$perm][2];
+		$bindVars[] = $permHash['level'];
 		$bindVars[] = $perm;
 		$gBitInstaller->mDb->query( $query, $bindVars );
 	}
@@ -54,16 +57,16 @@ foreach( array_keys( $gBitInstaller->mPermHash ) as $perm ) {
 // compare both perm arrays with each other and work out what permissions need 
 // to be added and which ones removed
 $insPerms = $delPerms = array();
-foreach( array_keys( $gBitInstaller->mPermHash ) as $perm ) {
+foreach( $gBitInstaller->mPermissionsSchema as $perm => $permHash ){
 	if( !in_array( $perm, array_keys( $bitPerms ))) {
-		if( $gBitInstaller->isInstalled( $gBitInstaller->mPermHash[$perm][3] )) {
-			$insPerms[$perm] = $gBitInstaller->mPermHash[$perm];
+		if( $gBitInstaller->isInstalled( $permHash['package'] )) {
+			$insPerms[$perm] = $permHash;
 		}
 	}
 }
 
 foreach( array_keys( $bitPerms ) as $perm ) {
-	if( !in_array( $perm, array_keys( $gBitInstaller->mPermHash ) ) ) {
+	if( !in_array( $perm, array_keys( $gBitInstaller->mPermissionsSchema ) ) ) {
 		$delPerms[$perm] = $bitPerms[$perm];
 	}
 }
@@ -125,7 +128,7 @@ if( !empty(  $_REQUEST['create_tables'] ) && !empty( $dbIntegrity )) {
 		foreach( $dbIntegrity as $package => $info ) {
 			foreach( $info['tables'] as $table ) {
 				$completeTableName = $tablePrefix.$table['name'];
-				$sql = $dict->CreateTableSQL( $completeTableName, $gBitInstaller->mPackages[$package]['tables'][$table['name']], $build );
+				$sql = $dict->CreateTableSQL( $completeTableName, $gBitInstaller->mPackagesSchemas[$package]['tables'][$table['name']], $build );
 				// Uncomment this line to see the create sql
 				//vd( $sql );
 				if( $sql ) {
@@ -208,16 +211,16 @@ function install_check_database_integrity( $pDbTables ) {
 	if( !empty( $pDbTables['missing'] ) && is_array( $pDbTables['missing'] )) {
 		foreach( array_keys( $pDbTables['missing'] ) as $package ) {
 			// we can't use the 'installed' flag in $gBitInstaller->mPackages[$package] because that is set to 'not installed' as soon as a table is missing
-			if( count( $gBitInstaller->mPackages[$package]['tables'] ) > count( $pDbTables['missing'][$package] )) {
+			if( count( $gBitInstaller->mPackagesSchemas[$package]['tables'] ) > count( $pDbTables['missing'][$package] )) {
 				// at least one table is missing
 				$ret[$package] = array(
-					'name'     => ucfirst( $gBitInstaller->mPackages[$package]['name'] ),
-					'required' => $gBitInstaller->mPackages[$package]['required'],
+					'name'     => ucfirst( $gBitInstaller->mPackagesSchemas[$package]['name'] ),
+					'required' => $gBitInstaller->mPackagesSchemas[$package]['required'],
 				);
 				foreach( $pDbTables['missing'][$package] as $table ) {
 					$ret[$package]['tables'][$table] = array(
 						'name' => $table,
-						'sql'  => $gBitInstaller->mPackages[$package]['tables'][$table],
+						'sql'  => $gBitInstaller->mPackagesSchemas[$package]['tables'][$table],
 					);
 				}
 			}

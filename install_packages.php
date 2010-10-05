@@ -173,16 +173,20 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			if( !empty( $package )) {  // this line doesnt make sense -wjames
 				if( in_array( $package, $_REQUEST['packages'] ) || ( empty( $packageHash['installed'] ) && !empty( $packageHash['required'] ) ) ) {
 
-					$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+					// @TODO these install qualifiers are a mess - clean this up to simplify this stuff
+					if( $method == 'install' || ( $method == 'reinstall' && in_array( 'settings', $removeActions ))) {
+						$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
-					$gBitInstaller->installPackagePreferences( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+						$gBitInstaller->installPackagePreferences( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+
+						$gBitInstaller->installPackagePermissions( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+					}
 
 					// this is to list any processed packages
 					$packageList[$method][] = $package;
 				}
 			}
 		}
-
 
 		// ---------------------- 4. ----------------------
 		// register all content types for installed packages

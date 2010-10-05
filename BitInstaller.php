@@ -40,6 +40,11 @@ class BitInstaller extends BitSystem {
 	var $mPackagesSchemas = array();
 
 	/**
+	 * mPermissionsSchema
+	 */
+	var $mPermissionsSchema = array();
+
+	/**
 	 * Initiolize BitInstaller 
 	 * @access public
 	 */
@@ -615,6 +620,16 @@ class BitInstaller extends BitSystem {
 	 */
 	function loadPackagesSchemas(){
 		$this->mPackagesSchemas = $this->getPackagesSchemas();
+
+		foreach( $this->mPackagesSchemas as $package=>$pkgHash ){
+			if( !empty( $pkgHash['permissions'] ) ){
+				foreach( $pkgHash['permissions'] as $perm => &$permHash ){
+					$permHash['package'] = $package;
+					$permHash['name'] = $perm;
+					$this->mPermissionsSchema[$perm] = $permHash;
+				}
+			}
+		}
 	}
 
 	/** 
@@ -884,18 +899,16 @@ class BitInstaller extends BitSystem {
 	}
 
 	function installPackageDefaults( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){ 
-		if( $pMethod == 'install' || ( $pMethod == 'reinstall' && in_array( 'settings', $pRemoveActions ))) {
-			// this list of installed packages is used to show newly installed packages
-			if( !empty( $pPackageHash['defaults'] ) ) {
-				foreach( $pPackageHash['defaults'] as $def ) {
-					if( $this->mDb->mType == 'firebird' ) {
-						$def = preg_replace( "/\\\'/", "''", $def );
-					}
-					$ret = $this->mDb->query( $def );
-					if (!$ret) {
-						$errors[] = "Error setting defaults";
-						$failedcommands[] = $def;
-					}
+		// this list of installed packages is used to show newly installed packages
+		if( !empty( $pPackageHash['defaults'] ) ) {
+			foreach( $pPackageHash['defaults'] as $def ) {
+				if( $this->mDb->mType == 'firebird' ) {
+					$def = preg_replace( "/\\\'/", "''", $def );
+				}
+				$ret = $this->mDb->query( $def );
+				if (!$ret) {
+					$errors[] = "Error setting defaults";
+					$failedcommands[] = $def;
 				}
 			}
 		}
@@ -903,10 +916,29 @@ class BitInstaller extends BitSystem {
 
 	function installPackagePreferences( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
 		global $gBitSystem;
-		if( $pMethod == 'install' || ( $pMethod == 'reinstall' && in_array( 'settings', $pRemoveActions ))) {
-			if( !empty( $pPackageHash['preferences'] ) ) {
-				foreach( $pPackageHash['preferences'] as $name=>$value ){
-					$gBitSystem->storeConfig( $name, $value, $pPackageHash['guid'] );
+		if( !empty( $pPackageHash['preferences'] ) ) {
+			foreach( $pPackageHash['preferences'] as $name=>$value ){
+				$gBitSystem->storeConfig( $name, $value, $pPackageHash['guid'] );
+			}
+		}
+	}
+
+	function installPackagePermissions(  $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+		if( !empty( $pPackageHash['permissions'] ) ){
+			// @TODO add validation, take this loop out of here
+			$tablePrefix = $this->getTablePrefix();
+
+			foreach( $pPackageHash['permissions'] as $perm => $permHash ){
+				$storeHash = array(
+					'perm_name' => $perm,
+					'perm_desc' => $permHash['description'],
+					'perm_level' => $permHash['level'],
+					'package' => $pPackageHash['guid'],
+				);
+				$table = "users_permissions";
+				if( (!$return = $this->mDb->associateInsert( $table, $storeHash )) ){
+					$errors[] = "Error storing permission: ".$perm;
+					$failedcommands[] = 'associateInsert '.$perm;
 				}
 			}
 		}
