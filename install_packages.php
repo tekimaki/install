@@ -234,8 +234,14 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			$gBitSystem->storeVersion( NULL, $gBitSystem->getBitVersion() );
 
 			// Some packages have some special things to take care of here.
-			foreach( $gBitInstaller->mInstallModules as $mod ) {
-				$gBitThemes->storeModule( $mod );
+			foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
+				if( in_array( $package, $_REQUEST['packages'] ) ) {
+					if( !empty( $packageHash['modules'] ) ){
+						foreach( $packageHash['modules'] as $moduleHash ){
+							$gBitThemes->storeModule( $moduleHash );
+						}
+					}
+				}
 			}
 
 			// Set the default format to get quicktags and content storing working
