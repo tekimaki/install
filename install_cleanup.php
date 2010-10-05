@@ -211,18 +211,16 @@ function install_check_database_integrity( $pDbTables ) {
 	if( !empty( $pDbTables['missing'] ) && is_array( $pDbTables['missing'] )) {
 		foreach( array_keys( $pDbTables['missing'] ) as $package ) {
 			// we can't use the 'installed' flag in $gBitInstaller->mPackages[$package] because that is set to 'not installed' as soon as a table is missing
-			if( count( $gBitInstaller->mPackagesSchemas[$package]['tables'] ) > count( $pDbTables['missing'][$package] )) {
-				// at least one table is missing
-				$ret[$package] = array(
-					'name'     => ucfirst( $gBitInstaller->mPackagesSchemas[$package]['name'] ),
-					'required' => $gBitInstaller->mPackagesSchemas[$package]['required'],
+			// at least one table is missing
+			$ret[$package] = array(
+				'name'     => ucfirst( $gBitInstaller->mPackagesSchemas[$package]['name'] ),
+				'required' => $gBitInstaller->mPackagesSchemas[$package]['required'],
+			);
+			foreach( $pDbTables['missing'][$package] as $table ) {
+				$ret[$package]['tables'][$table] = array(
+					'name' => $table,
+					'sql'  => $gBitInstaller->mPackagesSchemas[$package]['tables'][$table],
 				);
-				foreach( $pDbTables['missing'][$package] as $table ) {
-					$ret[$package]['tables'][$table] = array(
-						'name' => $table,
-						'sql'  => $gBitInstaller->mPackagesSchemas[$package]['tables'][$table],
-					);
-				}
 			}
 		}
 	}
