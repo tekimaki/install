@@ -35,16 +35,6 @@ class BitInstaller extends BitSystem {
 	var $mServices = array();
 
 	/**
-	 * mPackagesSchemas
-	 */
-	var $mPackagesSchemas = array();
-
-	/**
-	 * mPermissionsSchema
-	 */
-	var $mPermissionsSchema = array();
-
-	/**
 	 * Initiolize BitInstaller 
 	 * @access public
 	 */
@@ -612,25 +602,6 @@ class BitInstaller extends BitSystem {
 
 
 	// {{{============== new methods to replace package scanning and installation ========
-	
-	/**
-	 * loadPackagesSchemas
-	 *
-	 * scans all packages and loads their schema.yaml file
-	 */
-	function loadPackagesSchemas(){
-		$this->mPackagesSchemas = $this->getPackagesSchemas();
-
-		foreach( $this->mPackagesSchemas as $package=>$pkgHash ){
-			if( !empty( $pkgHash['permissions'] ) ){
-				foreach( $pkgHash['permissions'] as $perm => &$permHash ){
-					$permHash['package'] = $package;
-					$permHash['name'] = $perm;
-					$this->mPermissionsSchema[$perm] = $permHash;
-				}
-			}
-		}
-	}
 
 	/** 
 	 * installPackageTable
