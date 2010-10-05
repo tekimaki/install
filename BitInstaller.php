@@ -946,7 +946,7 @@ class BitInstaller extends BitSystem {
 
 	function registerContentTypes(){
 		foreach( $this->mPackagesSchemas as $package=>$packageHash ) {
-			if ( $this->isPackageInstalled2( $package ) && !empty( $packageHash['contenttypes'] ) ){
+			if ( $this->isPackageInstalled( $package ) && !empty( $packageHash['contenttypes'] ) ){
 				foreach ( $packageHash['contenttypes'] as $objectClass=>$classFile ){
 					require_once( $packageHash['path'].$classFile );
 					$tempObject = new $objectClass();
