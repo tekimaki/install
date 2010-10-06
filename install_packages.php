@@ -50,8 +50,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 	if(( $method = ( $_REQUEST['method'] )) == 'install' && !$_SESSION['first_install'] ) {
 		// make sure no required packages are included in this list
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
-			if( in_array( $package, $_REQUEST['packages'] ) && !empty( $packageHash['required'] )) {
-				$gBitSmarty->assign( 'warning', "Something unexpected has happened: One of the required packages has appeared in the list of selected packages. This generally only happens if the installation is missing a core database table. Please contact the bitweaver developers team on how to proceed." );
+			if( in_array( $package, $_REQUEST['packages'] ) && !empty( $packageHash['required'] ) && $gBitSystem->isPackageInstalled($package) ) {
+				$gBitSmarty->assign( 'warning', "Something unexpected has happened: One of the required packages which is already installed has appeared in the list of selected packages. This generally only happens if the installation is missing a core database table. Please contact the bitweaver developers team on how to proceed." );
 				$method = FALSE;
 			}
 		}
