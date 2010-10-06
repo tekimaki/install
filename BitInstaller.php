@@ -93,7 +93,7 @@ class BitInstaller extends BitSystem {
 	 */
 	function registerPackageUpgrade( $pParams, $pUpgradeHash = array() ) {
 		if( $this->verifyPackageUpgrade( $pParams )) {
-			$this->registerPackageVersion( $pParams['package'], $pParams['version'] );
+			// DEPRECATED $this->registerPackageVersion( $pParams['package'], $pParams['version'] );
 			$this->mPackageUpgrades[$pParams['package']][$pParams['version']]            = $pParams;
 			$this->mPackageUpgrades[$pParams['package']][$pParams['version']]['upgrade'] = $pUpgradeHash;
 
