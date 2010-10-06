@@ -21,13 +21,13 @@
 
 				{* include required packages during first install *}
 				{foreach from=$schema key=package item=item}
-					{if $item.required && !$item.installed}
+					{if $item.required && !$gBitSystem->isPackageInstalled($package)}
 						<input type="hidden" name="packages[]" value="{$package}" />
 					{/if}
 				{/foreach}
 
 				{foreach from=$schema key=package item=item}
-					{if !$item.installed and !$item.required}
+					{if !$item.required && !$gBitSystem->isPackageInstalled($package)}
 						{assign var=new_packages value=true}
 					{/if}
 				{/foreach}
@@ -50,7 +50,7 @@
 					<p>Packages are the parts of Bitweaver that deal with content such as wiki pages, blogs or news articles.</p>
 
 					{foreach from=$schema key=package item=item}
-						{if !$item.installed and !$item.required}
+						{if !$item.required && !$gBitSystem->isPackageInstalled($package)}
 							<div class="row">
 								<div class="formlabel">
 									<label for="{$package}">{biticon ipackage=$package iname="pkg_$package" iexplain=`$package`}</label>
@@ -160,7 +160,7 @@
 
 					{foreach from=$schema key=package item=item}
 						{if $item.tables || $item.defaults}
-							{if $item.installed and !$item.required}
+							{if !$item.required && $gBitSystem->isPackageInstalled($package)}
 								<div class="row">
 									<div class="formlabel">
 										<label for="{$package}">{biticon ipackage=$package iname="pkg_$package" iexplain=`$package`}</label>
