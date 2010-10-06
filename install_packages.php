@@ -172,25 +172,21 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitInstaller->loadConfig();
 
 
-
 		// ---------------------- 3. ----------------------
 		// run the defaults through afterwards so we can be sure all tables needed have been created
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
-			if( !empty( $package )) {  // this line doesnt make sense -wjames
-				if( in_array( $package, $_REQUEST['packages'] ) || ( empty( $packageHash['installed'] ) && !empty( $packageHash['required'] ) ) ) {
+			if( in_array( $package, $_REQUEST['packages'] ) &&
+				// @TODO these install qualifiers are a mess - clean this up to simplify this stuff
+				( $method == 'install' || ( $method == 'reinstall' && in_array( 'settings', $removeActions )))) {
 
-					// @TODO these install qualifiers are a mess - clean this up to simplify this stuff
-					if( $method == 'install' || ( $method == 'reinstall' && in_array( 'settings', $removeActions ))) {
-						$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+				$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
-						$gBitInstaller->installPackagePreferences( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+				$gBitInstaller->installPackagePreferences( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
-						$gBitInstaller->installPackagePermissions( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
-					}
+				$gBitInstaller->installPackagePermissions( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
 
-					// this is to list any processed packages
-					$packageList[$method][] = $package;
-				}
+				// this is to list any processed packages
+				$packageList[$method][] = $package;
 			}
 		}
 
