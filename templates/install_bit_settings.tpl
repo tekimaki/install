@@ -37,9 +37,9 @@
 			<select name="bit_index" id="bit_index">
 				<option value="my_home"{if $bit_index eq 'my_home'} selected="selected"{/if}>{tr}My home{/tr}</option>
 				<option value="group_home"{if $bit_index eq 'group_home'} selected="selected"{/if}>{tr}Group home{/tr}</option>
-				{foreach key=name item=package from=$schema }
-					{if $package.homeable && $package.installed}
-						<option {if $package.name=='wiki'}selected="selected"{/if} value="{$package.name}">{$package.name}</option>
+				{foreach key=guid item=package from=$gBitSystem->mPackagesConfig }
+					{if $package.homeable eq 'y'}
+						<option {if $package.guid=='wiki'}selected="selected"{/if} value="{$package.guid}">{$package.name|default:$package.guid|ucfirst}</option>
 					{/if}
 				{/foreach}
 				{if $gBitSystem->isFeatureActive( 'users_custom_home' )}
