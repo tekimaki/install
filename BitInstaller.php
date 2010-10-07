@@ -927,45 +927,6 @@ class BitInstaller extends BitSystem {
 	}
 
 	// }}}
-
-
-	/**
-	 * loadPackagePluginsSchemas
-	 */
-	function loadPackagePluginSchemas( $pPackageName ){
-		if( $paths = LibertySystem::getPackagePluginPaths( $pPackageName ) ){
-			foreach( $paths as $path ){
-				$this->loadPluginSchemasAtPath( $path );
-			}
-		}
-	}
-
-	/**
-	 * loadPluginSchemasAtPath
-	 * @see BitInstaller::loadPackagePluginSchemas
-	 */
-	function loadPluginSchemasAtPath( $pPluginsPath ){
-        if( is_dir( $pPluginsPath ) && $plugins = opendir( $pPluginsPath )) {
-            while( FALSE !== ( $pluginDirName = readdir( $plugins ) ) ) {
-				$pluginDirPath = $pPluginsPath.'/'.$pluginDirName;
-				if( is_dir( $pluginDirPath ) && is_file( $pluginDirPath.'/schema_inc.php' ) ) {
-                    include_once( $pluginDirPath.'/schema_inc.php' );
-                }
-            }
-        }
-	}
-
-	/**
-	 * registerServicePreferences
-	 * @param pServiceGuid service type guids
-	 * @param pContentTypes mixed content type guids
-	 */
-	function registerServicePreferences( $pPkg, $pServiceGuid, $pContentTypes ){
-		if( empty( $this->mServices[$pPkg][$pServiceGuid] ) ){
-			$this->mServices[$pPkg][$pServiceGuid] = array();
-		}
-		$this->mServices[$pPkg][$pServiceGuid] = array_merge( $this->mServices[$pPkg][$pServiceGuid], $pContentTypes );
-	}
 }
 
 /**
