@@ -60,6 +60,24 @@
 									{formhelp note=$item.info is_installer=1}
 									{formhelp note="<strong>Location</strong>: `$item.url`"}
 									{formhelp package=$package}
+									{* package service plugins *}
+									{* @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense *}
+									{if !empty($item.plugins)}
+										<div class="row">
+											<strong>Package Plugins</strong>
+											<ul style="list-style:none">
+											{foreach from=$item.plugins key=plugin item=packageServices}
+												{foreach from=$packageServices.plugin key=service item=ctypes}
+													<li>
+														<label><input type="checkbox" name="package_plugins[{$package}][]" value="{$service}" checked="checked" />&nbsp;
+														<strong>{$packageServices.name|default:$service|capitalize}</strong></label>
+														{formhelp note=$packageServices.description}
+													</li>
+												{/foreach}
+											{/foreach}
+											</ul>
+										</div>
+									{/if}
 								{/forminput}
 							</div>
 						{/if}
@@ -82,29 +100,6 @@
 							find &lt;package&gt;/ -type f -print | xargs chmod 644
 						</code><br />
 					</p>
-				{/if}
-
-				{* package service plugins *}
-				{* @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense *}
-				{if $servicePlugins}
-					<h2>Package Plugins</h2>
-					{foreach from=$servicePlugins key=package item=packageServices}
-					<div class="row">
-						<div class="formlabel">
-							<label for="{$package}">{biticon ipackage=$package iname="pkg_$package" iexplain=`$package`}</label>
-						</div>
-						{forminput}
-							<label><strong>{$package|ucfirst}</strong></label>
-						{/forminput}
-						{foreach from=$packageServices key=service item=ctypes}
-						{forminput}
-							<label>
-								<input type="checkbox" name="package_plugins[{$package}][]" value="{$service}" checked="checked" />&nbsp;
-								<strong>{$service|capitalize}</strong>
-							</label>
-						{/forminput}
-						{/foreach}
-					{/foreach}
 				{/if}
 
 				<div class="row submit">
