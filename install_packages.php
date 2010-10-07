@@ -26,8 +26,6 @@ $gBitSmarty->assign( 'next_step', $step );
 $schema = $gBitInstaller->mPackagesSchemas;
 ksort( $schema );
 $gBitSmarty->assign_by_ref( 'schema', $schema );
-// pass service plugin data to template
-$gBitSmarty->assign_by_ref( 'servicePlugins', $gBitInstaller->mServices );
 
 // confirm that we have all the admin data in the session before proceeding
 if( !empty( $_REQUEST['packages'] ) && in_array( 'users', $_REQUEST['packages'] ) && ( empty( $_SESSION['login'] ) || empty( $_SESSION['password'] ) || empty( $_SESSION['email'] ) ) ) {
@@ -147,10 +145,6 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			}
 		}
 
-		// Force a reload of all our preferences
-		// $gBitInstaller->mPrefs = '';
-		// $gBitInstaller->loadConfig();
-
 
 		// ---------------------- 2. ----------------------
 		// manipulate the data in kernel_config
@@ -167,12 +161,13 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			}
 		}
 
+
 		// Tonnes of stuff has changed. Force a reload of all our preferences
 		$gBitInstaller->mPrefs = '';
-		$gBitInstaller->loadConfig();
+		$gBitInstaller->loadConfig();	// @TODO check this - dont think it actually has any point.
 
 
-		// ---------------------- 3. ----------------------
+		// ------- Defaults Preferences Permissions -------
 		// run the defaults through afterwards so we can be sure all tables needed have been created
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] ) &&
@@ -190,9 +185,32 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			}
 		}
 
-		// ---------------------- 4. ----------------------
+
+		// ------------- Register Content Types -----------
 		// register all content types for installed packages
 		$gBitInstaller->registerContentTypes();
+
+
+		// ------------------- Plugins --------------------
+		// @TODO plugins should be sorted by dependencies and installed in that order
+		foreach( $gBitInstaller->mPackagesSchemas as $package->$packageHash ){
+			foreach( $packageHash['plugins'] as $pluginHash ){
+				if( in_array( $pluginHash, $_REQUEST['package_plugins'] ) ){
+					// @TODO debug these calls - make sure pluginHash can be submitted
+					// generate all the tables's
+					$gBitInstaller->installPackageTables( $pluginHash, $method, $removeActions, $dict, $errors, $failedcommands );
+					// generate all the indexes, and sequences
+					$gBitInstaller->installPackageIndexes( $pluginHash, $method, $removeActions, $dict, $errors, $failedcommands );
+				}
+			}
+		}
+		// @TODO install plugin schemas
+		// @TODO install plugin constraints
+		// @TODO install plugin settings
+		// @TODO install plugin content
+		// @TODO install plugin defaults
+		// @TODO install plugin preferences
+		// @TODO install plugin permissions
 
 
 		// ---------------------- 5. ----------------------
