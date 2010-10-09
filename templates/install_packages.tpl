@@ -50,13 +50,18 @@
 					<p>Packages are the parts of Bitweaver that deal with content such as wiki pages, blogs or news articles.</p>
 
 					{foreach from=$schema key=package item=item}
-						{if !$item.required && !$gBitSystem->isPackageInstalled($package)}
+						{if !empty($item.plugins) || (!$item.required && !$gBitSystem->isPackageInstalled($package))}
 							<div class="row">
 								<div class="formlabel">
 									<label for="{$package}">{biticon ipackage=$package iname="pkg_$package" iexplain=`$package`}</label>
 								</div>
 								{forminput}
-									<label><input type="checkbox" name="packages[]" value="{$package}" id="{$package}" checked="checked" /> <strong>{$package|capitalize}</strong></label>
+									<label>
+									{if !$item.required && !$gBitSystem->isPackageInstalled($package)}
+										<input type="checkbox" name="packages[]" value="{$package}" id="{$package}" checked="checked" />&nbsp;
+									{/if}
+										<strong>{$package|capitalize}</strong>
+									</label>
 									{formhelp note=$item.info is_installer=1}
 									{formhelp note="<strong>Location</strong>: `$item.url`"}
 									{formhelp package=$package}
@@ -67,13 +72,11 @@
 											<strong>Package Plugins</strong>
 											<ul style="list-style:none">
 											{foreach from=$item.plugins key=plugin item=packageServices}
-												{foreach from=$packageServices.plugin key=service item=ctypes}
-													<li>
-														<label><input type="checkbox" name="package_plugins[{$package}][]" value="{$service}" checked="checked" />&nbsp;
-														<strong>{$packageServices.name|default:$service|capitalize}</strong></label>
-														{formhelp note=$packageServices.description}
-													</li>
-												{/foreach}
+												<li>
+													<label><input type="checkbox" name="package_plugins[{$package}][]" value="{$plugin}" checked="checked" />&nbsp;
+													<strong>{$packageServices.name|default:$plugin|capitalize}</strong></label>
+													{formhelp note=$packageServices.description}
+												</li>
 											{/foreach}
 											</ul>
 										</div>

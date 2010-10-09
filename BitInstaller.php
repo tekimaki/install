@@ -35,12 +35,31 @@ class BitInstaller extends BitSystem {
 	var $mServices = array();
 
 	/**
+	 * mFailedCommands
+	 *
+	 * @var array
+	 * @access public
+	 */
+	var $mFailedCommands = array();
+
+	/**
+	 * mDataDict
+	 * NewDataDictionary instance
+	 * @see initDataDict
+	 */
+	var $mDataDict;
+
+	/**
 	 * Initiolize BitInstaller 
 	 * @access public
 	 */
 	function BitInstaller() {
 		BitSystem::BitSystem();
 		$this->getWebServerUid();
+	}
+
+	function initDataDict( $pDb ){
+		$this->mDataDict = NewDataDictionary( $pDb );
 	}
 
 	/**
@@ -604,17 +623,14 @@ class BitInstaller extends BitSystem {
 	// {{{============== new methods to replace package scanning and installation ========
 
 	/** 
-	 * installPackageTable
+	 * installPackageTables
 	 */
-	function installPackageTables( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
-		global $gBitSystem, $gBitKernelDb;
+	function installPackageTables( $pPackageHash, $pMethod, $pRemoveActions ){
+		global $gBitSystem;
 		$package = $pPackageHash['guid'];
-		$tablePrefix = $this->getTablePrefix();
 
 		// work out what we're going to do with this package
-		if ( $pMethod == 'install' && $_SESSION['first_install'] ) {
-			$build = array( 'NEW' );
-		} elseif( $pMethod == "install" && !$gBitSystem->isPackageInstalled($package) ) {
+		if ( $pMethod == 'install' && ( $_SESSION['first_install'] || !$gBitSystem->isPackageInstalled($package) ) ) {
 			$build = array( 'NEW' );
 		} elseif( $pMethod == "reinstall" && $gBitSystem->isPackageInstalled($package) && in_array( 'tables', $removeActions )) {
 			// only set $build if we want to reset the tables - this allows us to reset a package to it's starting values without deleting any content
@@ -634,44 +650,64 @@ class BitInstaller extends BitSystem {
 		// Install tables - $build is empty when we don't pick tables, when un / reinstalling packages
 		if( !empty( $pPackageHash['tables'] ) && is_array( $pPackageHash['tables'] ) && !empty( $build )) {
 			foreach( $pPackageHash['tables'] as $tableName=>$tableHash ) {
-				$completeTableName = $tablePrefix.$tableName;
-				// in case prefix has backticks for schema
-				$sql = $dict->CreateTableSQL( $completeTableName, $tableHash, $build );
-				// Uncomment this line to see the create sql
-				for( $sqlIdx = 0; $sqlIdx < count( $sql ); $sqlIdx++ ) {
-					$gBitKernelDb->convertQuery( $sql[$sqlIdx] );
-				}
-				if( $sql && $dict->ExecuteSQLArray( $sql ) <= 1) {
-					$errors[] = 'Failed to create table '.$completeTableName;
-					$failedcommands[] = implode(" ", $sql);
-				}
+				$this->installTable( $tableName, $tableHash, $build );
 			}
 		}
 	}
 
-	function installPackageConstraints( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+	function installPluginTables( $pPluginHash, $pMethod, $pRemoveActions ){
+		// @TODO implement checks to see is service is installed or being reinstalled or dropped
+		// @see installPackageTables 
+		$build = 'NEW';
+		// Install tables - $build is empty when we don't pick tables, when un / reinstalling packages
+		if( !empty( $pPluginHash['tables'] ) && is_array( $pPluginHash['tables'] ) && !empty( $build )) {
+			foreach( $pPluginHash['tables'] as $tableName=>$tableHash ) {
+				$this->installTable( $tableName, $tableHash, $build );
+			}
+		}
+	}
+
+	function installTable( $tableName, $tableHash, $build = 'NEW' ){
+		global $gBitKernelDb;
+		$tablePrefix = $this->getTablePrefix();
+		$completeTableName = $tablePrefix.$tableName;
+
+		// in case prefix has backticks for schema
+		$sql = $this->mDataDict->CreateTableSQL( $completeTableName, $tableHash, $build );
+
+		for( $sqlIdx = 0; $sqlIdx < count( $sql ); $sqlIdx++ ) {
+			$gBitKernelDb->convertQuery( $sql[$sqlIdx] );
+		}
+
+		if( $sql && $this->mDataDict->ExecuteSQLArray( $sql ) <= 1) {
+			$this->mErrors[] = 'Failed to create table '.$completeTableName;
+			$this->mFailedCommands[] = implode(" ", $sql);
+		}
+	}
+
+	function installConstraints( $pSchemaHash, $pMethod, $pRemoveActions ){
 		global $gBitKernelDb, $gBitInstallDb;
 		$tablePrefix = $this->getTablePrefix();
 
 		if( ($pMethod == 'install' || $pMethod == 'reinstall' )
-			&& !empty( $pPackageHash['constraints'] ) && is_array( $pPackageHash['constraints'] ) 
+			&& !empty( $pSchemaHash['constraints'] ) && is_array( $pSchemaHash['constraints'] ) 
 		) {
-			foreach( $pPackageHash['constraints'] as $tableName=>$tableHash ) {
+			foreach( $pSchemaHash['constraints'] as $tableName=>$tableHash ) {
 				$completeTableName = $tablePrefix.$tableName;
 				foreach( $tableHash as $constraintName=>$constraint ) {
 					$sql = 'ALTER TABLE `'.$completeTableName.'` ADD CONSTRAINT `'.$constraintName.'` '.$constraint;
 					$gBitKernelDb->convertQuery($sql);
 					$ret = $gBitInstallDb->Execute( $sql );
 					if ( $ret === false ) {
-						$errors[] = 'Failed to add constraint '.$constraintName.' to table '.$completeTableName;
-						$failedcommands[] = $sql;
+						$this->mErrors[] = 'Failed to add constraint '.$constraintName.' to table '.$completeTableName;
+						$this->mFailedCommands[] = $sql;
 					}
 				}
 			}
 		}
 	}
 
-	function installPackageIndexes( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+	function installIndexes( $pSchemaHash, $pMethod, $pRemoveActions ){
 		global $gBitInstallDb;
 		// set prefix
 		$schemaQuote = strrpos( BIT_DB_PREFIX, '`' );
@@ -679,31 +715,39 @@ class BitInstaller extends BitSystem {
 
 		if( $pMethod == 'install' || ( $pMethod == 'reinstall' && in_array( 'tables', $pRemoveActions ))) {
 			// Install Indexes
-			if( isset( $pPackageHash['indexes'] ) && is_array( $pPackageHash['indexes'] ) ) {
-				foreach( array_keys( $pPackageHash['indexes'] ) as $tableIdx ) {
-					$completeTableName = $sequencePrefix.$pPackageHash['indexes'][$tableIdx]['table'];
+			if( isset( $pSchemaHash['indexes'] ) && is_array( $pSchemaHash['indexes'] ) ) {
+				foreach( array_keys( $pSchemaHash['indexes'] ) as $tableIdx ) {
+					$completeTableName = $sequencePrefix.$pSchemaHash['indexes'][$tableIdx]['table'];
 
-					$sql = $dict->CreateIndexSQL( $tableIdx, $completeTableName, $pPackageHash['indexes'][$tableIdx]['cols'], $pPackageHash['indexes'][$tableIdx]['opts'] );
-					if( $sql && $dict->ExecuteSQLArray( $sql ) <= 1) {
-						$errors[] = 'Failed to create index '.$tableIdx." on ".$completeTableName;
-						$failedcommands[] = implode(" ", $sql);
+					$sql = $this->mDataDict->CreateIndexSQL( $tableIdx, $completeTableName, $pSchemaHash['indexes'][$tableIdx]['cols'], $pSchemaHash['indexes'][$tableIdx]['opts'] );
+					if( $sql && $this->mDataDict->ExecuteSQLArray( $sql ) <= 1) {
+						$this->mErrors[] = 'Failed to create index '.$tableIdx." on ".$completeTableName;
+						$this->mFailedCommands[] = implode(" ", $sql);
 					}
 				}
 			}
+		}
+	}
 
+	function installSequences( $pSchemaHash, $pMethod, $pRemoveActions ){
+		global $gBitInstallDb;
+		// set prefix
+		$schemaQuote = strrpos( BIT_DB_PREFIX, '`' );
+		$sequencePrefix = ( $schemaQuote ? substr( BIT_DB_PREFIX,  $schemaQuote + 1 ) : BIT_DB_PREFIX );
+
+		if( $pMethod == 'install' || ( $pMethod == 'reinstall' && in_array( 'tables', $pRemoveActions ))) {
 			if( $pMethod == 'reinstall' && in_array( 'tables', $pRemoveActions )) {
-				if( isset( $pPackageHash['sequences'] ) && is_array( $pPackageHash['sequences'] ) ) {
-					foreach( array_keys( $pPackageHash['sequences'] ) as $sequenceIdx ) {
+				if( isset( $pSchemaHash['sequences'] ) && is_array( $pSchemaHash['sequences'] ) ) {
+					foreach( array_keys( $pSchemaHash['sequences'] ) as $sequenceIdx ) {
 						$sql = $gBitInstallDb->DropSequence( $sequencePrefix.$sequenceIdx );
 						if (!$sql) {
-							$errors[] = 'Failed to drop sequence '.$sequencePrefix.$sequenceIdx;
-							$failedcommands[] = "DROP SEQUENCE ".$sequencePrefix.$sequenceIdx;
+							$this->mErrors[] = 'Failed to drop sequence '.$sequencePrefix.$sequenceIdx;
+							$this->mFailedCommands[] = "DROP SEQUENCE ".$sequencePrefix.$sequenceIdx;
 						}
 					}
 				}
 			}
-
-			if( isset( $pPackageHash['sequences'] ) && is_array( $pPackageHash['sequences'] ) ) {
+			if( isset( $pSchemaHash['sequences'] ) && is_array( $pSchemaHash['sequences'] ) ) {
 				// If we use InnoDB for MySql we need this to get sequence tables created correctly.
 				if( isset( $_SESSION['use_innodb'] ) ) {
 					if( $_SESSION['use_innodb'] == TRUE ) {
@@ -712,144 +756,143 @@ class BitInstaller extends BitSystem {
 						$gBitInstallDb->_genSeqSQL = "create table %s (id int not null) ENGINE=MYISAM";
 					}
 				}
-				foreach( array_keys( $pPackageHash['sequences'] ) as $sequenceIdx ) {
-					$sql = $gBitInstallDb->CreateSequence( $sequencePrefix.$sequenceIdx, $pPackageHash['sequences'][$sequenceIdx]['start'] );
+				foreach( array_keys( $pSchemaHash['sequences'] ) as $sequenceIdx ) {
+					$sql = $gBitInstallDb->CreateSequence( $sequencePrefix.$sequenceIdx, $pSchemaHash['sequences'][$sequenceIdx]['start'] );
 					if (!$sql) {
-						$errors[] = 'Failed to create sequence '.$sequencePrefix.$sequenceIdx;
-						$failedcommands[] = "CREATE SEQUENCE ".$sequencePrefix.$sequenceIdx." START ".$pPackageHash['sequences'][$sequenceIdx]['start'];
+						$this->mErrors[] = 'Failed to create sequence '.$sequencePrefix.$sequenceIdx;
+						$this->mFailedCommands[] = "CREATE SEQUENCE ".$sequencePrefix.$sequenceIdx." START ".$pSchemaHash['sequences'][$sequenceIdx]['start'];
 					}
 				}
 			}
 		} elseif( $pMethod == 'uninstall' && in_array( 'tables', $pRemoveActions )) {
-			if( isset( $pPackageHash['sequences'] ) && is_array( $pPackageHash['sequences'] ) ) {
-				foreach( array_keys( $pPackageHash['sequences'] ) as $sequenceIdx ) {
+			if( isset( $pSchemaHash['sequences'] ) && is_array( $pSchemaHash['sequences'] ) ) {
+				foreach( array_keys( $pSchemaHash['sequences'] ) as $sequenceIdx ) {
 					$sql = $gBitInstallDb->DropSequence( $sequencePrefix.$sequenceIdx );
 					if (!$sql) {
-						$errors[] = 'Failed to drop sequence '.$sequencePrefix.$sequenceIdx;
-						$failedcommands[] = "DROP SEQUENCE ".$sequencePrefix.$sequenceIdx;
+						$this->mErrors[] = 'Failed to drop sequence '.$sequencePrefix.$sequenceIdx;
+						$this->mFailedCommands[] = "DROP SEQUENCE ".$sequencePrefix.$sequenceIdx;
 					}
 				}
 			}
 		}
 	}
 
-	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+	/**
+	 * expungePackageSettings
+	 */
+	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions ){
 		$package = $pPackageHash['guid'];
 		$tablePrefix = $this->getTablePrefix();
 
-		// remove all the requested settings - this is a bit tricky and might require some more testing
-		// Remove settings if requested
-		if( in_array( 'settings', $pRemoveActions ) ) {
-			// get a list of permissions used by this package
-			$query = "SELECT `perm_name` FROM `".$tablePrefix."users_permissions` WHERE `package`=?";
-			$perms = $this->mDb->getCol( $query, array( $package ));
-			// we deal with liberty_content_permissions below
-			$tables = array( 'users_group_permissions', 'users_permissions' );
-			foreach( $tables as $table ) {
-				foreach( $perms as $perm ) {
-					$delete = "
-						DELETE FROM `".$tablePrefix.$table."`
-						WHERE `perm_name`=?";
-					$ret = $this->mDb->query( $delete, array( $perm ) );
-					if (!$ret) {
-						$errors[] = "Error deleting permission ". $perm;
-						$failedcommands[] = $delete." ".$perm;
-					}
-				}
-			}
-
-			// list of tables where we store package specific settings
-			$tables = array( 'kernel_config' );
-			foreach( $tables as $table ) {
+		// get a list of permissions used by this package
+		$query = "SELECT `perm_name` FROM `".$tablePrefix."users_permissions` WHERE `package`=?";
+		$perms = $this->mDb->getCol( $query, array( $package ));
+		// we deal with liberty_content_permissions below
+		$tables = array( 'users_group_permissions', 'users_permissions' );
+		foreach( $tables as $table ) {
+			foreach( $perms as $perm ) {
 				$delete = "
 					DELETE FROM `".$tablePrefix.$table."`
-					WHERE `package`=? OR `config_name` LIKE ?";
-				$ret = $this->mDb->query( $delete, array( $package, $package."%" ));
+					WHERE `perm_name`=?";
+				$ret = $this->mDb->query( $delete, array( $perm ) );
 				if (!$ret) {
-					$errors[] = "Error deleting confgis for package ". $package;
-					$failedcommands[] = $delete." ".$package;
+					$this->mErrors[] = "Error deleting permission ". $perm;
+					$this->mFailedCommands[] = $delete." ".$perm;
 				}
 			}
+		}
 
-			// delete from the master package table
-			$delete2 = "DELETE FROM `".$tablePrefix."packages` WHERE `guid`=?";
-			$ret2 = $this->mDb->query( $delete, array( $package, $package."%" ));
-			if (!$ret2) {
-				$errors[] = "Error deleting registration of package ". $package;
-				$failedcommands[] = $delete." ".$package;
+		// list of tables where we store package specific settings
+		$tables = array( 'kernel_config' );
+		foreach( $tables as $table ) {
+			$delete = "
+				DELETE FROM `".$tablePrefix.$table."`
+				WHERE `package`=? OR `config_name` LIKE ?";
+			$ret = $this->mDb->query( $delete, array( $package, $package."%" ));
+			if (!$ret) {
+				$this->mErrors[] = "Error deleting confgis for package ". $package;
+				$this->mFailedCommands[] = $delete." ".$package;
 			}
+		}
+
+		// delete from the master package table
+		$delete2 = "DELETE FROM `".$tablePrefix."packages` WHERE `guid`=?";
+		$ret2 = $this->mDb->query( $delete, array( $package, $package."%" ));
+		if (!$ret2) {
+			$this->mErrors[] = "Error deleting registration of package ". $package;
+			$this->mFailedCommands[] = $delete." ".$package;
 		}
 	}
 
-	function expungePackageContent( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+	/**
+	 * expungePackageContent
+	 */
+	function expungePackageContent( $pPackageHash, $pMethod, $pRemoveActions ){
+		global $gLibertySystem;
 		$package = $pPackageHash['guid'];
 		$tablePrefix = $this->getTablePrefix();
 
-		// now we can start removing content if requested
-		// lots of foreach loops in here
-		if( in_array( 'content', $pRemoveActions ) ) {
-			// first we need to work out the package specific content details
-			foreach( $gLibertySystem->mContentTypes as $contentType ) {
-				if( $contentType['handler_package'] == $package ) {
-					// first we get a list of content_ids which we can use to scan various tables without content_type_guid column for data
-					$query = "SELECT `content_id` FROM `".$tablePrefix."liberty_content` WHERE `content_type_guid`=?";
-					$rmContentIds = $this->mDb->getCol( $query, array( $contentType['content_type_guid'] ));
+		// first we need to work out the package specific content details
+		foreach( $gLibertySystem->mContentTypes as $contentType ) {
+			if( $contentType['handler_package'] == $package ) {
+				// first we get a list of content_ids which we can use to scan various tables without content_type_guid column for data
+				$query = "SELECT `content_id` FROM `".$tablePrefix."liberty_content` WHERE `content_type_guid`=?";
+				$rmContentIds = $this->mDb->getCol( $query, array( $contentType['content_type_guid'] ));
 
-					// list of core tables where bitweaver might store relevant data
-					// firstly, we delete using the content ids
-					// order is important due to the constraints set in the schema
-					$tables = array(
-						'liberty_aliases'             => 'content_id',
-						'liberty_structures'          => 'content_id',
-						'liberty_content_hits'        => 'content_id',
-						'liberty_content_history'     => 'content_id',
-						'liberty_content_prefs'       => 'content_id',
-						'liberty_content_links'       => 'to_content_id',
-						'liberty_content_links'       => 'from_content_id',
-						'liberty_process_queue'       => 'content_id',
-						'liberty_content_permissions' => 'content_id',
-						'users_favorites_map'         => 'favorite_content_id'
-						// This table needs to be fixed to use content_id instead of page_id
-						//'liberty_copyrights'          => 'content_id',
+				// list of core tables where bitweaver might store relevant data
+				// firstly, we delete using the content ids
+				// order is important due to the constraints set in the schema
+				$tables = array(
+					'liberty_aliases'             => 'content_id',
+					'liberty_structures'          => 'content_id',
+					'liberty_content_hits'        => 'content_id',
+					'liberty_content_history'     => 'content_id',
+					'liberty_content_prefs'       => 'content_id',
+					'liberty_content_links'       => 'to_content_id',
+					'liberty_content_links'       => 'from_content_id',
+					'liberty_process_queue'       => 'content_id',
+					'liberty_content_permissions' => 'content_id',
+					'users_favorites_map'         => 'favorite_content_id'
+					// This table needs to be fixed to use content_id instead of page_id
+					//'liberty_copyrights'          => 'content_id',
 
-						// liberty comments are tricky. should we remove comments linked to the content being deleted?
-						// makes sense to me but only if boards are not installed - xing
-						//'liberty_comments'            => 'root_id',
-					);
-					foreach( $rmContentIds as $contentId ) {
-						foreach( $tables as $table => $column ) {
-							$delete = "
-								DELETE FROM `".$tablePrefix.$table."`
-								WHERE `$column`=?";
-							$ret = $this->mDb->query( $delete, array( $contentId ));
-							if (!$ret) {
-								$errors[] = "Error deleting from ". $tablePrefxi.$table;
-								$failedcommands[] = $delete." ".$contentId;
-							}
-						}
-					}
-					// TODO: get a list of tables that have a liberty_content.content_id constraint and delete those entries that we can
-					// remove the entries from liberty_content in the next step
-					// one such example is stars and stars_history - we need to automagically recognise tables with such constraints.
-
-					// TODO: we need an option to physically remove files from the server when we uninstall stuff like fisheye and treasury
-					// i think we'll need to call the appropriate expunge function but i'm too tired to work out how or where to get that info from
-
-					// secondly, we delete using the content type guid
-					// order is important due to the constraints set in the schema
-					$tables = array(
-						'liberty_content',
-						'liberty_content_types'
-					);
-					foreach( $tables as $table ) {
+					// liberty comments are tricky. should we remove comments linked to the content being deleted?
+					// makes sense to me but only if boards are not installed - xing
+					//'liberty_comments'            => 'root_id',
+				);
+				foreach( $rmContentIds as $contentId ) {
+					foreach( $tables as $table => $column ) {
 						$delete = "
 							DELETE FROM `".$tablePrefix.$table."`
-							WHERE `content_type_guid`=?";
-						$ret = $this->mDb->query( $delete, array( $contentType['content_type_guid'] ));
+							WHERE `$column`=?";
+						$ret = $this->mDb->query( $delete, array( $contentId ));
 						if (!$ret) {
-							$errors[] = "Error deleting content type";
-							$failedcommands[] = $delete." ".$contentType['content_type_guid'];
+							$this->mErrors[] = "Error deleting from ". $tablePrefxi.$table;
+							$this->mFailedCommands[] = $delete." ".$contentId;
 						}
+					}
+				}
+				// TODO: get a list of tables that have a liberty_content.content_id constraint and delete those entries that we can
+				// remove the entries from liberty_content in the next step
+				// one such example is stars and stars_history - we need to automagically recognise tables with such constraints.
+
+				// TODO: we need an option to physically remove files from the server when we uninstall stuff like fisheye and treasury
+				// i think we'll need to call the appropriate expunge function but i'm too tired to work out how or where to get that info from
+
+				// secondly, we delete using the content type guid
+				// order is important due to the constraints set in the schema
+				$tables = array(
+					'liberty_content',
+					'liberty_content_types'
+				);
+				foreach( $tables as $table ) {
+					$delete = "
+						DELETE FROM `".$tablePrefix.$table."`
+						WHERE `content_type_guid`=?";
+					$ret = $this->mDb->query( $delete, array( $contentType['content_type_guid'] ));
+					if (!$ret) {
+						$this->mErrors[] = "Error deleting content type";
+						$this->mFailedCommands[] = $delete." ".$contentType['content_type_guid'];
 					}
 				}
 			}
@@ -869,47 +912,47 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
-	function installPackageDefaults( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){ 
+	function installDefaults( $pSchemaHash, $pMethod, $pRemoveActions ){ 
 		// this list of installed packages is used to show newly installed packages
-		if( !empty( $pPackageHash['defaults'] ) ) {
-			foreach( $pPackageHash['defaults'] as $def ) {
+		if( !empty( $pSchemaHash['defaults'] ) ) {
+			foreach( $pSchemaHash['defaults'] as $def ) {
 				if( $this->mDb->mType == 'firebird' ) {
 					$def = preg_replace( "/\\\'/", "''", $def );
 				}
 				$ret = $this->mDb->query( $def );
 				if (!$ret) {
-					$errors[] = "Error setting defaults";
-					$failedcommands[] = $def;
+					$this->mErrors[] = "Error setting defaults";
+					$this->mFailedCommands[] = $def;
 				}
 			}
 		}
 	}
 
-	function installPackagePreferences( $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
+	function installPreferences( $pSchemaHash, $pMethod, $pRemoveActions ){
 		global $gBitSystem;
-		if( !empty( $pPackageHash['preferences'] ) ) {
-			foreach( $pPackageHash['preferences'] as $name=>$value ){
-				$gBitSystem->storeConfig( $name, $value, $pPackageHash['guid'] );
+		if( !empty( $pSchemaHash['preferences'] ) ) {
+			foreach( $pSchemaHash['preferences'] as $name=>$value ){
+				$gBitSystem->storeConfig( $name, $value, $pSchemaHash['guid'] );
 			}
 		}
 	}
 
-	function installPackagePermissions(  $pPackageHash, $pMethod, $pRemoveActions, &$dict, &$errors, &$failedcommands ){
-		if( !empty( $pPackageHash['permissions'] ) ){
+	function installPermissions(  $pSchemaHash, $pMethod, $pRemoveActions, $pPackageGuid ){
+		if( !empty( $pSchemaHash['permissions'] ) ){
 			// @TODO add validation, take this loop out of here
 			$tablePrefix = $this->getTablePrefix();
 
-			foreach( $pPackageHash['permissions'] as $perm => $permHash ){
+			foreach( $pSchemaHash['permissions'] as $perm => $permHash ){
 				$storeHash = array(
 					'perm_name' => $perm,
 					'perm_desc' => $permHash['description'],
 					'perm_level' => $permHash['level'],
-					'package' => $pPackageHash['guid'],
+					'package' => $pPackageGuid,
 				);
 				$table = "users_permissions";
 				if( (!$return = $this->mDb->associateInsert( $table, $storeHash )) ){
-					$errors[] = "Error storing permission: ".$perm;
-					$failedcommands[] = 'associateInsert '.$perm;
+					$this->mErrors[] = "Error storing permission: ".$perm;
+					$this->mFailedCommands[] = 'associateInsert '.$perm;
 				}
 			}
 		}

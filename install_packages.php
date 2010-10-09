@@ -38,8 +38,17 @@ if( !empty( $_REQUEST['packages'] ) && in_array( 'users', $_REQUEST['packages'] 
 if( !empty( $_REQUEST['cancel'] ) ) {
 	header( 'Location: '.INSTALL_PKG_URL.'install.php?step='.( $step + 1 ) );
 // process packages 
-} elseif( !empty( $_REQUEST['packages'] ) && is_array( $_REQUEST['packages'] ) && !empty( $_REQUEST['method'] ) && !empty( $_REQUEST['submit_packages'] ) ) {
-	$failedcommands = array();
+} elseif( 
+	!empty( $_REQUEST['submit_packages'] ) && 
+	!empty( $_REQUEST['method'] ) && 
+	( !empty( $_REQUEST['packages'] ) && is_array( $_REQUEST['packages'] ) ) || 
+	( !empty( $_REQUEST['package_plugins'] ) && is_array( $_REQUEST['package_plugins'] ) )  
+	) {
+
+	if( empty( $_REQUEST['packages'] ) ){ $_REQUEST['packages'] = array(); }
+	if( empty( $_REQUEST['package_pluginss'] ) ){ $_REQUEST['package_pluginss'] = array(); }
+	
+	// DEL $failedcommands = array();
 
 	// shorthand for the actions we are supposed to perform during an unistall or re-install
 	$removeActions = !empty( $_REQUEST['remove_actions'] ) ? $_REQUEST['remove_actions'] : array();
@@ -80,11 +89,12 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 //			$result = $gBitInstallDb->Execute( "DECLARE EXTERNAL FUNCTION RAND RETURNS DOUBLE PRECISION BY VALUE ENTRY_POINT 'IB_UDF_rand' MODULE_NAME 'ib_udf'" );
 		}
 
-		$dict = NewDataDictionary( $gBitInstallDb );
+		// initialize the datadictionary
+		$gBitInstaller->initDataDict( $gBitInstallDb );
 
 		if( !$gBitInstaller->mDb->getCaseSensitivity() ) {
 			// set nameQuote to blank
-			$dict->connection->nameQuote = '';
+			$gBitInstaller->mDataDict->connection->nameQuote = '';
 		}
 
 		// When using MySql and installing further packages after first install
@@ -125,35 +135,41 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitKernelDb = new BitDb();
 		$gBitKernelDb->mType = $gBitDbType;
 
-		// ---------------------- 1. ----------------------
+
+		// ******************************* Install Packages *********************************//
+		// -------------------- Tables -------------------
 		// Do all tables first so that we avoid chicken egg problems
 		// with constraints between packages, particularly liberty &
 		// users packages.
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] )) {
 				// generate all the tables's
-				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
-				// generate all the indexes, and sequences
-				$gBitInstaller->installPackageIndexes( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions );
+				// generate all the indexes
+				$gBitInstaller->installIndexes( $packageHash, $method, $removeActions );
+				// generate all the sequences
+				$gBitInstaller->installSequences( $packageHash, $method, $removeActions );
 			}
 		}
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] )) {
-
 				// install additional constraints
-				$gBitInstaller->installPackageConstraints( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+				$gBitInstaller->installConstraints( $packageHash, $method, $removeActions );
 			}
 		}
 
-
-		// ---------------------- 2. ----------------------
-		// manipulate the data in kernel_config
+		// -------------------- Settings -------------------
+		// manipulate the data in kernel_config and package content
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] ) ) {
-				$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
-
-				$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
-
+				// expunge packages settings
+				if( in_array( 'settings', $removeActions ) ) {
+					$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions );
+				}
+				// expunge packages content
+				if( in_array( 'content', $removeActions ) ) {
+					$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions );
+				}
 				// set installed packages active
 				if( $method == 'install' || $method == 'reinstall' ) {
 					$gBitInstaller->setPackageActive( $packageHash );
@@ -161,84 +177,121 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			}
 		}
 
-
-		// Tonnes of stuff has changed. Force a reload of all our preferences
-		$gBitInstaller->mPrefs = '';
-		$gBitInstaller->loadConfig();	// @TODO check this - dont think it actually has any point.
-
-
 		// ------- Defaults Preferences Permissions -------
-		// run the defaults through afterwards so we can be sure all tables needed have been created
+		// run the defaults through afterwards so we can be sure 
+		// all tables needed have been created
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] ) &&
-				// @TODO these install qualifiers are a mess - clean this up to simplify this stuff
-				( $method == 'install' || ( $method == 'reinstall' && in_array( 'settings', $removeActions )))) {
-
-				$gBitInstaller->installPackageDefaults( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
-
-				$gBitInstaller->installPackagePreferences( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
-
-				$gBitInstaller->installPackagePermissions( $packageHash, $method, $removeActions, $dict, $errors, $failedcommands );
+			// @TODO these install qualifiers are a mess - clean this up to simplify this stuff
+			( $method == 'install' || ( $method == 'reinstall' && in_array( 'settings', $removeActions )))) {
+				// install defaults (this is just raw sql)
+				$gBitInstaller->installDefaults( $packageHash, $method, $removeActions );
+				// install preferences
+				$gBitInstaller->installPreferences( $packageHash, $method, $removeActions );
+				// install permissions
+				$gBitInstaller->installPermissions( $packageHash, $method, $removeActions, $packageHash['guid'] );
 
 				// this is to list any processed packages
 				$packageList[$method][] = $package;
 			}
 		}
 
-
 		// ------------- Register Content Types -----------
 		// register all content types for installed packages
 		$gBitInstaller->registerContentTypes();
 
+		// ***************************** End Install Packages *******************************//
 
-		// ------------------- Plugins --------------------
+
+
+
+		// ***************************** Install Package Plugins ****************************//
+		// -------------------- Tables -------------------
 		// @TODO plugins should be sorted by dependencies and installed in that order
-		foreach( $gBitInstaller->mPackagesSchemas as $package->$packageHash ){
-			foreach( $packageHash['plugins'] as $pluginHash ){
-				if( in_array( $pluginHash, $_REQUEST['package_plugins'] ) ){
-					// @TODO debug these calls - make sure pluginHash can be submitted
-					// generate all the tables's
-					$gBitInstaller->installPackageTables( $pluginHash, $method, $removeActions, $dict, $errors, $failedcommands );
-					// generate all the indexes, and sequences
-					$gBitInstaller->installPackageIndexes( $pluginHash, $method, $removeActions, $dict, $errors, $failedcommands );
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
+			if( !empty( $packageHash['plugins'] ) ){
+				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
+					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ){
+						// @TODO debug these calls - make sure pluginHash can be submitted
+						// generate all the tables's
+						$gBitInstaller->installPluginTables( $pluginHash, $method, $removeActions );
+						// generate all the indexes
+						$gBitInstaller->installIndexes( $pluginHash, $method, $removeActions );
+						// generate all the  sequences
+						$gBitInstaller->installSequences( $pluginHash, $method, $removeActions );
+					}
 				}
 			}
 		}
-		// @TODO install plugin schemas
-		// @TODO install plugin constraints
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
+			if( !empty( $packageHash['plugins'] ) ){
+				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
+					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ){
+						// install additional constraints
+						$gBitInstaller->installConstraints( $pluginHash, $method, $removeActions );
+					}
+				}
+			}
+		}
+
 		// @TODO install plugin settings
 		// @TODO install plugin content
-		// @TODO install plugin defaults
-		// @TODO install plugin preferences
-		// @TODO install plugin permissions
+		
+		// ------- Defaults Preferences Permissions -------
+		// run the defaults through afterwards so we can be sure 
+		// all tables needed have been created
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
+			if( !empty( $packageHash['plugins'] ) ){
+				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
+					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) &&
+					// @TODO these install qualifiers are a mess - clean this up to simplify this stuff
+					( $method == 'install' || ( $method == 'reinstall' && in_array( 'settings', $removeActions )))) {
+						// install defaults (this is just raw sql)
+						$gBitInstaller->installDefaults( $pluginHash, $method, $removeActions );
+						// install preferences
+						$gBitInstaller->installPreferences( $pluginHash, $method, $removeActions );
+						// install permissions
+						$gBitInstaller->installPermissions( $pluginHash, $method, $removeActions, $packageHash['guid'] );
 
+						// this is to list any processed packages
+						$packageList[$method][] = $package.' plugin: '.$pluginGuid;
+					}
+				}
+			}
+		}
 
-		// ---------------------- 5. ----------------------
+		// ---------- Content Type Preferences -----------
 		// set lcconfig service configurations for all content types of installed packages
-		// @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense
-		if( !empty( $_REQUEST['package_plugins'] ) ){
+		// @TODO dont limit this to plugins - apply to all services
+		// @TODO need to check if a service has been installed before - 
+		// fix is to overhaul how services are registered not hack in 
+		// any table checking non-sense
+		if( !empty( $_REQUEST['package_plugins'] ) && $method == 'install'){
 			require_once( LCCONFIG_PKG_PATH.'LCConfig.php' );
 			require_once( LIBERTY_PKG_PATH.'LibertySystem.php' );
 			$LCConfig = LCConfig::getInstance();
 			$LSys = new LibertySystem();
 			$LSys->loadContentTypes();
-			foreach( $_REQUEST['package_plugins'] as $pkg=>$services ){
-				foreach( $services as $plugin_guid ){
-					if( !empty($gBitInstaller->mServices[$pkg]) && 
-						in_array( $plugin_guid, array_keys( $gBitInstaller->mServices[$pkg] ) ) )
-					{
+			// loop over each package installed 
+			foreach( $_REQUEST['package_plugins'] as $pkg=>$plugins ){
+				// loop over each package plugin installed
+				foreach( $plugins as $plugin_guid ){
+					$schema = $gBitSystem->getPackageSchema( $pkg );
+					if( !empty( $schema['plugins'][$plugin_guid] ) ){
+						$plugin = $schema['plugins'][$plugin_guid];
 						foreach( array_keys( $LSys->mContentTypes ) as $ctype ) {
 							// currently LCConfig prefers to store a negation - tho it can store a possitive association as well
-							if( !in_array( $ctype, $gBitInstaller->mServices[$pkg][$plugin_guid] ) ){
-								$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'n');
+							if( empty( $plugin['content_types'] ) || !in_array( $ctype, $plugin['content_types'] ) ){
+								$LCConfig->storeConfig( 'service_'.$plugin['service_guid'], $ctype, 'n');
 							}else{
-								$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'y');
+								$LCConfig->storeConfig( 'service_'.$plugin['service_guid'], $ctype, 'y');
 							}
 						}
 					}
 				}
 			}
 		}
+		// ************************* End Install Package Plugins ****************************//
 
 
 		// ---------------------- 6. ----------------------
@@ -247,7 +300,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			// set the version of bitweaver in the database
 			$gBitSystem->storeVersion( NULL, $gBitSystem->getBitVersion() );
 
-			// Some packages have some special things to take care of here.
+			// install layout modules
 			foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 				if( in_array( $package, $_REQUEST['packages'] ) ) {
 					if( !empty( $packageHash['modules'] ) ){
@@ -351,7 +404,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitSmarty->assign( 'packageList', $packageList );
 
 		// enter some log information to say we've initialised the system
-		if( empty( $failedcommands ) ) {
+		if( empty( $gBitInstaller->mFailedCommands ) ) {
 			$logHash['action_log'] = array(
 				'user_id' => ROOT_USER_ID,
 				'title' => 'System Installation',
@@ -371,8 +424,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 
 			LibertyContent::storeActionLog( $logHash );
 		} else {
-			$gBitSmarty->assign( 'errors', $errors);
-			$gBitSmarty->assign( 'failedcommands', $failedcommands);
+			$gBitSmarty->assign( 'errors', $gBitInstaller->mErrors);
+			$gBitSmarty->assign( 'failedcommands', $gBitInstaller->mFailedCommands);
 		}
 
 		// display the confirmation page
