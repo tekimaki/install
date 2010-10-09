@@ -66,8 +66,15 @@
 									{formhelp note="<strong>Location</strong>: `$item.url`"}
 									{formhelp package=$package}
 									{* package service plugins *}
-									{* @TODO need to check if a service has been installed before - fix is to overhaul how services are registered not hack in any table checking non-sense *}
 									{if !empty($item.plugins)}
+										{assign var=hasPluginToInstall value=0}
+										{foreach from=$item.plugins key=plugin item=packageServices}
+											{if !$gBitSystem->isPluginInstalled($plugin)}
+												{assign var=hasPluginToInstall value=1}
+											{/if}
+										{/foreach}
+									{/if}
+									{if !empty($hasPluginToInstall)}
 										<div class="row">
 											<strong>Package Plugins</strong>
 											<ul style="list-style:none">
@@ -168,6 +175,29 @@
 										{formhelp note=$item.info is_installer=1}
 										{formhelp note="<strong>Location</strong>: `$item.url`"}
 										{formhelp package=$package}
+										{* package service plugins *}
+										{if !empty($item.plugins)}
+											{assign var=hasPluginToReinstall value=0}
+											{foreach from=$item.plugins key=plugin item=packageServices}
+												{if $gBitSystem->isPluginInstalled($plugin)}
+													{assign var=hasPluginToReinstall value=1}
+												{/if}
+											{/foreach}
+										{/if}
+										{if !empty($hasPluginToReinstall)}
+											<div class="row">
+												<strong>Package Plugins</strong>
+												<ul style="lits-style:none">
+												{foreach from=$item.plugins key=plugin item=packageServices}
+													<li>
+														<label><input type="checkbox" name="package_plugins[{$package}][]" value="{$plugin}" />&nbsp;
+														<strong>{$packageServices.name|default:$plugin|capitalize}</strong></label>
+														{formhelp note=$packageServices.description}
+													</li>
+												{/foreach}
+												</ul>
+											</div>
+										{/if}
 									{/forminput}
 								</div>
 							{/if}

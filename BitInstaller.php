@@ -899,6 +899,13 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
+	function setPluginActive( $pPackagePluginHash ){
+		global $gBitSystem;
+		
+		$pPackagePluginHash['active'] = 'y';
+		$gBitSystem->storePlugin( $pPackagePluginHash );
+	}
+
 	function setPackageActive( $pPackageHash ){
 		global $gBitSystem;
 		

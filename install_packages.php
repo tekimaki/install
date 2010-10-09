@@ -46,7 +46,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 	) {
 
 	if( empty( $_REQUEST['packages'] ) ){ $_REQUEST['packages'] = array(); }
-	if( empty( $_REQUEST['package_pluginss'] ) ){ $_REQUEST['package_pluginss'] = array(); }
+	if( empty( $_REQUEST['package_plugins'] ) ){ $_REQUEST['package_plugins'] = array(); }
 	
 	// DEL $failedcommands = array();
 
@@ -176,6 +176,29 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 				}
 			}
 		}
+		// Register plugins and set active.
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
+			if( !empty( $packageHash['plugins'] ) ){
+				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
+					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ) {
+						$pluginRegistrationHash = array(
+										'guid' => $pluginGuid,
+										'package_guid' => $package,
+						);
+						if (!empty($pluginHash['version'])) {
+							$pluginRegistrationHash['version'] = $pluginHash['version'];
+						}
+						if (!empty($pluginHash['name'])) {
+							$pluginRegistrationHash['name'] = $pluginHash['name'];
+						}
+						if (!empty($pluginHash['description'])) {
+							$pluginRegistrationHash['description'] = $pluginHash['description'];
+						}
+						$gBitInstaller->setPluginActive( $pluginRegistrationHash );
+					}
+				}
+			}
+		}
 
 		// ------- Defaults Preferences Permissions -------
 		// run the defaults through afterwards so we can be sure 
@@ -282,9 +305,9 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 						foreach( array_keys( $LSys->mContentTypes ) as $ctype ) {
 							// currently LCConfig prefers to store a negation - tho it can store a possitive association as well
 							if( empty( $plugin['content_types'] ) || !in_array( $ctype, $plugin['content_types'] ) ){
-								$LCConfig->storeConfig( 'service_'.$plugin['service_guid'], $ctype, 'n');
+								$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'n');
 							}else{
-								$LCConfig->storeConfig( 'service_'.$plugin['service_guid'], $ctype, 'y');
+								$LCConfig->storeConfig( 'service_'.$plugin_guid, $ctype, 'y');
 							}
 						}
 					}
