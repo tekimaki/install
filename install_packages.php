@@ -176,29 +176,6 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 				}
 			}
 		}
-		// Register plugins and set active.
-		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
-			if( !empty( $packageHash['plugins'] ) ){
-				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
-					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ) {
-						$pluginRegistrationHash = array(
-										'guid' => $pluginGuid,
-										'package_guid' => $package,
-						);
-						if (!empty($pluginHash['version'])) {
-							$pluginRegistrationHash['version'] = $pluginHash['version'];
-						}
-						if (!empty($pluginHash['name'])) {
-							$pluginRegistrationHash['name'] = $pluginHash['name'];
-						}
-						if (!empty($pluginHash['description'])) {
-							$pluginRegistrationHash['description'] = $pluginHash['description'];
-						}
-						$gBitInstaller->setPluginActive( $pluginRegistrationHash );
-					}
-				}
-			}
-		}
 
 		// ------- Defaults Preferences Permissions -------
 		// run the defaults through afterwards so we can be sure 
@@ -232,7 +209,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		// -------------------- Tables -------------------
 		// @TODO plugins should be sorted by dependencies and installed in that order
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
-			if( !empty( $packageHash['plugins'] ) ){
+			if( !empty( $packageHash['plugins'] ) && !empty( $_REQUEST['package_plugins'][$package] ) ){
 				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
 					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ){
 						// @TODO debug these calls - make sure pluginHash can be submitted
@@ -247,7 +224,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			}
 		}
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
-			if( !empty( $packageHash['plugins'] ) ){
+			if( !empty( $packageHash['plugins'] ) && !empty( $_REQUEST['package_plugins'][$package] ) ){
 				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
 					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ){
 						// install additional constraints
@@ -258,13 +235,31 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		}
 
 		// @TODO install plugin settings
+		// Register plugins and set active.
+		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
+			if( !empty( $packageHash['plugins'] ) && !empty( $_REQUEST['package_plugins'][$package] ) ){
+				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
+					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ) {
+						// modify the data hash with required params
+						$pluginHash['guid'] = $pluginGuid;
+						$pluginHash['package_guid'] = $package;
+
+						// set installed packages active
+						if( $method == 'install' || $method == 'reinstall' ) {
+							$gBitInstaller->setPluginActive( $pluginHash );
+						}
+					}
+				}
+			}
+		}
+
 		// @TODO install plugin content
-		
+
 		// ------- Defaults Preferences Permissions -------
 		// run the defaults through afterwards so we can be sure 
 		// all tables needed have been created
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ){
-			if( !empty( $packageHash['plugins'] ) ){
+			if( !empty( $packageHash['plugins'] ) && !empty( $_REQUEST['package_plugins'][$package] ) ){
 				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
 					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) &&
 					// @TODO these install qualifiers are a mess - clean this up to simplify this stuff
