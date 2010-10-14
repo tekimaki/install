@@ -781,6 +781,7 @@ class BitInstaller extends BitSystem {
 	 * expungePackageSettings
 	 */
 	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions ){
+		global $gLibertySystem;
 		$package = $pPackageHash['guid'];
 		$tablePrefix = $this->getTablePrefix();
 
@@ -816,10 +817,7 @@ class BitInstaller extends BitSystem {
 		}
 
 		// list of content types belonging to this package 
-		require_once( LIBERTY_PKG_PATH.'LibertySystem.php' );
-		$LSys = new LibertySystem();
-		$LSys->loadContentTypes();
-		foreach( $LSys->mContentTypes as $ctype => $ctypeData ) {
+		foreach( $gLibertySystem->mContentTypes as $ctype => $ctypeData ) {
 			if( $ctypeData['handler_package'] == $package ){ 
 				$delete = "DELETE FROM `".$tablePrefix."lc_types_config` WHERE `content_type_guid` = ?";
 				$ret = $this->mDb->query( $delete, array( $ctype ) );
@@ -848,11 +846,22 @@ class BitInstaller extends BitSystem {
 		$tablePrefix = $this->getTablePrefix();
 
 		// first we need to work out the package specific content details
-		foreach( $gLibertySystem->mContentTypes as $contentType ) {
+		foreach( $gLibertySystem->mContentTypes as $ctype => $contentType ) {
 			if( $contentType['handler_package'] == $package ) {
 				// first we get a list of content_ids which we can use to scan various tables without content_type_guid column for data
 				$query = "SELECT `content_id` FROM `".$tablePrefix."liberty_content` WHERE `content_type_guid`=?";
-				$rmContentIds = $this->mDb->getCol( $query, array( $contentType['content_type_guid'] ));
+				if( $rmContentIds = $this->mDb->getCol( $query, array( $ctype )) ){
+					// simple way to expunge content and cascade related data - call expunge, duh
+					foreach( $rmContentIds as $contentId ) {
+						$obj = new $contentType['handler_class']( NULL, $contentId );
+						$obj->load();
+						if( $obj->isValid() ){
+							$obj->expunge();
+						}
+					}
+				}
+
+				/* DEPRECATE THIS MADNESS
 
 				// list of core tables where bitweaver might store relevant data
 				// firstly, we delete using the content ids
@@ -910,6 +919,7 @@ class BitInstaller extends BitSystem {
 						$this->mFailedCommands[] = $delete." ".$contentType['content_type_guid'];
 					}
 				}
+				*/
 			}
 		}
 	}

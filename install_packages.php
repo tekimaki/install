@@ -145,6 +145,15 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		// users packages.
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] )) {
+				// if dropping tables (handled in installPackageTables - insane!) we need to drop content and settings first
+				// expunge packages content
+				if( in_array( 'content', $removeActions ) ) {
+					$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions );
+				}
+				// expunge packages settings
+				if( in_array( 'settings', $removeActions ) ) {
+					$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions );
+				}
 				// generate all the tables's
 				$gBitInstaller->installPackageTables( $packageHash, $method, $removeActions );
 				// generate all the indexes
@@ -164,14 +173,6 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		// manipulate the data in kernel_config and package content
 		foreach( $gBitInstaller->mPackagesSchemas as $package=>$packageHash ) {
 			if( in_array( $package, $_REQUEST['packages'] ) ) {
-				// expunge packages settings
-				if( in_array( 'settings', $removeActions ) ) {
-					$gBitInstaller->expungePackageSettings( $packageHash, $method, $removeActions );
-				}
-				// expunge packages content
-				if( in_array( 'content', $removeActions ) ) {
-					$gBitInstaller->expungePackageContent( $packageHash, $method, $removeActions );
-				}
 				// set installed packages active
 				if( $method == 'install' || $method == 'reinstall' ) {
 					$gBitInstaller->setPackageActive( $packageHash );
