@@ -89,6 +89,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 //			$result = $gBitInstallDb->Execute( "DECLARE EXTERNAL FUNCTION RAND RETURNS DOUBLE PRECISION BY VALUE ENTRY_POINT 'IB_UDF_rand' MODULE_NAME 'ib_udf'" );
 		}
 
+		$packageList = array();
+
 		// initialize the datadictionary
 		$gBitInstaller->initDataDict( $gBitInstallDb );
 

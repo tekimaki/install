@@ -632,10 +632,10 @@ class BitInstaller extends BitSystem {
 		// work out what we're going to do with this package
 		if ( $pMethod == 'install' && ( $_SESSION['first_install'] || !$gBitSystem->isPackageInstalled($package) ) ) {
 			$build = array( 'NEW' );
-		} elseif( $pMethod == "reinstall" && $gBitSystem->isPackageInstalled($package) && in_array( 'tables', $removeActions )) {
+		} elseif( $pMethod == "reinstall" && $gBitSystem->isPackageInstalled($package) && in_array( 'tables', $pRemoveActions )) {
 			// only set $build if we want to reset the tables - this allows us to reset a package to it's starting values without deleting any content
 			$build = array( 'REPLACE' );
-		} elseif( $pMethod == "uninstall" && $gBitSystem->isPackageInstalled($package) && in_array( 'tables', $removeActions )) {
+		} elseif( $pMethod == "uninstall" && $gBitSystem->isPackageInstalled($package) && in_array( 'tables', $pRemoveActions )) {
 			$build = array( 'DROP' );
 		}
 		// If we use MySql and not DROP anything
@@ -815,12 +815,27 @@ class BitInstaller extends BitSystem {
 			}
 		}
 
+		// list of content types belonging to this package 
+		require_once( LIBERTY_PKG_PATH.'LibertySystem.php' );
+		$LSys = new LibertySystem();
+		$LSys->loadContentTypes();
+		foreach( $LSys->mContentTypes as $ctype => $ctypeData ) {
+			if( $ctypeData['handler_package'] == $package ){ 
+				$delete = "DELETE FROM `".$tablePrefix."lc_types_config` WHERE `content_type_guid` = ?";
+				$ret = $this->mDb->query( $delete, array( $ctype ) );
+				if( !$ret ){
+					$this->mErrors[] = "Error deleting content_type_guid ". $ctype;
+					$this->mFailedCommands[] = $delete." ".$ctype;
+				}
+			}
+		}
+
 		// delete from the master package table
 		$delete2 = "DELETE FROM `".$tablePrefix."packages` WHERE `guid`=?";
-		$ret2 = $this->mDb->query( $delete, array( $package, $package."%" ));
+		$ret2 = $this->mDb->query( $delete2, array( $package ));
 		if (!$ret2) {
 			$this->mErrors[] = "Error deleting registration of package ". $package;
-			$this->mFailedCommands[] = $delete." ".$package;
+			$this->mFailedCommands[] = $delete2." ".$package;
 		}
 	}
 
@@ -867,7 +882,7 @@ class BitInstaller extends BitSystem {
 							WHERE `$column`=?";
 						$ret = $this->mDb->query( $delete, array( $contentId ));
 						if (!$ret) {
-							$this->mErrors[] = "Error deleting from ". $tablePrefxi.$table;
+							$this->mErrors[] = "Error deleting from ". $tablePrefix.$table;
 							$this->mFailedCommands[] = $delete." ".$contentId;
 						}
 					}
