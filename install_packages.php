@@ -224,6 +224,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 						$gBitInstaller->installIndexes( $pluginHash, $method, $removeActions );
 						// generate all the  sequences
 						$gBitInstaller->installSequences( $pluginHash, $method, $removeActions );
+						// install api handlers
+						$gBitInstaller->installPluginAPIHandlers(  $pluginHash, $method, $removeActions );
 					}
 				}
 			}
