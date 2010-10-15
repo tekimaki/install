@@ -990,6 +990,14 @@ class BitInstaller extends BitSystem {
 		}
 	}
 
+	function installPluginAPIs( $pSchemaHash, $pMethod, $pRemoveActions ){
+		if( !empty( $pSchemaHash['plugin_apis'] ) ){
+			foreach( $pSchemaHash['plugin_apis'] as $hook ){
+				$this->storePluginAPI( $hook );
+			}
+		}
+	}
+
 	function registerContentTypes(){
 		foreach( $this->mPackagesSchemas as $package=>$packageHash ) {
 			if ( $this->isPackageInstalled( $package ) && !empty( $packageHash['contenttypes'] ) ){
@@ -1066,8 +1074,8 @@ function makeConnection( $gBitDbType, $gBitDbHost, $gBitDbUser, $gBitDbPassword,
  */
 function upgrade_package_sort( $a, $b ) {
 	global $gBitInstaller;
-	$aa = $gBitInstaller->mPackages[$a];
-	$bb = $gBitInstaller->mPackages[$b];
+	$aa = $gBitInstaller->mPackagesSchemas[$a];
+	$bb = $gBitInstaller->mPackagesSchemas[$b];
 	if(( $aa['required'] && $bb['required'] ) || ( !$aa['required'] && !$bb['required'] )) {
 		return 0;
 	} elseif( $aa['required'] && !$bb['required'] ) {

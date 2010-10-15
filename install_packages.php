@@ -193,6 +193,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 				$gBitInstaller->installPreferences( $packageHash, $method, $removeActions );
 				// install permissions
 				$gBitInstaller->installPermissions( $packageHash, $method, $removeActions, $packageHash['guid'] );
+				// install plugin apis
+				$gBitInstaller->installPluginAPIs(  $packageHash, $method, $removeActions );
 
 				// this is to list any processed packages
 				$packageList[$method][] = $package;
