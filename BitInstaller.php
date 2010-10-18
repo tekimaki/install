@@ -1001,8 +1001,8 @@ class BitInstaller extends BitSystem {
 	}
 
 	function installPluginAPIHandlers( $pPluginHash, $pMethod, $pRemoveActions ){
-		if( !empty( $pSchemaHash['api_handlers'] ) ){
-			foreach( $pSchemaHash['api_handlers'] as $type=>$handlers ){
+		if( !empty( $pPluginHash['api_handlers'] ) ){
+			foreach( $pPluginHash['api_handlers'] as $type=>$handlers ){
 				foreach( $handlers as $api_hook=>$plugin_handler ){
 					$storeHash = array(
 						'plugin_guid' => $pPluginHash['guid'], 

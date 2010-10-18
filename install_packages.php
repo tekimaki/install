@@ -224,8 +224,6 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 						$gBitInstaller->installIndexes( $pluginHash, $method, $removeActions );
 						// generate all the  sequences
 						$gBitInstaller->installSequences( $pluginHash, $method, $removeActions );
-						// install api handlers
-						$gBitInstaller->installPluginAPIHandlers(  $pluginHash, $method, $removeActions );
 					}
 				}
 			}
@@ -255,6 +253,8 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 						if( $method == 'install' || $method == 'reinstall' ) {
 							$gBitInstaller->setPluginActive( $pluginHash );
 						}
+						// install api handlers - must be installed after plugin is inserting into package_plugins table due to constraints
+						$gBitInstaller->installPluginAPIHandlers(  $pluginHash, $method, $removeActions );
 					}
 				}
 			}
