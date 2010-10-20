@@ -142,7 +142,7 @@ $install_file[$i]['name'] = 'Done';
 $gBitSmarty->assign_by_ref( 'gBitSystem', $gBitSystem );
 
 // if we have to log in, call login template and die
-if( !empty( $gBitDbType ) && !empty( $gBitInstaller->mPackages['users']['installed'] ) && !$gBitUser->isAdmin() && !$_SESSION['first_install'] ) {
+if( !empty( $gBitDbType ) && $gBitInstaller->isInstalled('users') && !$gBitUser->isAdmin() && !$_SESSION['first_install'] ) {
 	$install_file = 'login';
 	$gBitSmarty->assign( 'install_file', INSTALL_PKG_PATH."templates/install_".$install_file.".tpl" );
 	$gBitSmarty->assign( 'progress', 0 );

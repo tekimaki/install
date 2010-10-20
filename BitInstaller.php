@@ -205,7 +205,7 @@ class BitInstaller extends BitSystem {
 	 * @return TRUE on success, FALSE on failure - mErrors will contain reason for failure
 	 */
 	function isInstalled( $pPackage = 'kernel' ) {
-		return( !empty( $this->mPackages[$pPackage]['installed'] ));
+		return( !empty( $this->mPackages[$pPackage] ));
 	}
 
 	/**
