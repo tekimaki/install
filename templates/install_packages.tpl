@@ -66,15 +66,15 @@
 									{formhelp note="<strong>Location</strong>: `$item.url`"}
 									{formhelp package=$package}
 									{* package service plugins *}
-									{if !empty($item.plugins)}
-										{assign var=hasPluginToInstall value=0}
+									{assign var=hasPluginToInstall value=0}
+									{if $item.plugins}
 										{foreach from=$item.plugins key=plugin item=packageServices}
 											{if !$gBitSystem->isPluginInstalled($plugin)}
 												{assign var=hasPluginToInstall value=1}
 											{/if}
 										{/foreach}
 									{/if}
-									{if !empty($hasPluginToInstall)}
+									{if $hasPluginToInstall}
 										<div class="row">
 											<strong>Package Plugins</strong>
 											<ul style="list-style:none">
@@ -176,15 +176,15 @@
 										{formhelp note="<strong>Location</strong>: `$item.url`"}
 										{formhelp package=$package}
 										{* package service plugins *}
-										{if !empty($item.plugins)}
-											{assign var=hasPluginToReinstall value=0}
+										{assign var=hasPluginToReinstall value=0}
+										{if $item.plugins}
 											{foreach from=$item.plugins key=plugin item=packageServices}
 												{if $gBitSystem->isPluginInstalled($plugin)}
 													{assign var=hasPluginToReinstall value=1}
 												{/if}
 											{/foreach}
 										{/if}
-										{if !empty($hasPluginToReinstall)}
+										{if $hasPluginToReinstall}
 											<div class="row">
 												<strong>Package Plugins</strong>
 												<ul style="lits-style:none">
