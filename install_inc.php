@@ -112,6 +112,10 @@ $gBitInstaller = new BitInstaller();
 
 // load all schema data
 $gBitInstaller->loadPackagesSchemas();
+// initialize default core pkgs
+if( !$gBitSystem->isDatabaseValid() ) {
+	$gBitSystem->initPackages();
+}
 // setup contants for each package in schema
 $gBitInstaller->configAllPackages();
 
