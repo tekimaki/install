@@ -110,7 +110,10 @@ $gBitInstaller = new BitInstaller();
 // default style is set in kernel/config_defaults.php
 //$gBitThemes->setStyle( DEFAULT_THEME );
 
+// load all schema data
 $gBitInstaller->loadPackagesSchemas();
+// setup contants for each package in schema
+$gBitInstaller->configAllPackages();
 
 // we need this massive array available during install to work out if bitweaver has already been installed
 // this array is so massive that it will kill system with too little memory allocated to php
