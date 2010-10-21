@@ -50,6 +50,11 @@ class BitInstaller extends BitSystem {
 	var $mDataDict;
 
 	/**
+	 * mInstalledTables
+	 */
+	var $mInstalledTables;
+
+	/**
 	 * Initiolize BitInstaller 
 	 * @access public
 	 */
@@ -619,6 +624,13 @@ class BitInstaller extends BitSystem {
 		return $ret;
 	}
 
+	function getInstalledTables( $pForce = FALSE ){
+		if( !isset( $mInstalledTables ) || $pForce ){
+			$this->mInstalledTables = $this->verifyInstalledPackages();
+		}
+		return $this->mInstalledTables;
+	}
+
 
 	// {{{============== new methods to replace package scanning and installation ========
 
@@ -656,13 +668,17 @@ class BitInstaller extends BitSystem {
 	}
 
 	function installPluginTables( $pPluginHash, $pMethod, $pRemoveActions ){
+		$installTables = $this->getInstalledTables();
 		// @TODO implement checks to see is service is installed or being reinstalled or dropped
 		// @see installPackageTables 
 		$build = 'NEW';
 		// Install tables - $build is empty when we don't pick tables, when un / reinstalling packages
 		if( !empty( $pPluginHash['tables'] ) && is_array( $pPluginHash['tables'] ) && !empty( $build )) {
 			foreach( $pPluginHash['tables'] as $tableName=>$tableHash ) {
-				$this->installTable( $tableName, $tableHash, $build );
+				if( (!empty( $installedTables['present'][$pPluginHash['guid']] ) && !in_array( $tableName, $installedTables['present'][$pPluginHash['guid']] )) ||
+					(!empty( $installedTables['unused'] ) &&  !in_array( $tableName, $installedTables['unused'] ))){
+					$this->installTable( $tableName, $tableHash, $build );
+				}
 			}
 		}
 	}
