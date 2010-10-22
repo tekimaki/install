@@ -668,7 +668,7 @@ class BitInstaller extends BitSystem {
 	}
 
 	function installPluginTables( $pPluginHash, $pMethod, $pRemoveActions ){
-		$installTables = $this->getInstalledTables();
+		$installedTables = $this->getInstalledTables();
 		// @TODO implement checks to see is service is installed or being reinstalled or dropped
 		// @see installPackageTables 
 		$build = 'NEW';

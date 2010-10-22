@@ -79,11 +79,13 @@
 											<strong>Package Plugins</strong>
 											<ul style="list-style:none">
 											{foreach from=$item.plugins key=plugin item=packageServices}
-												<li>
-													<label><input type="checkbox" name="package_plugins[{$package}][]" value="{$plugin}" checked="checked" />&nbsp;
-													<strong>{$packageServices.name|default:$plugin|capitalize}</strong></label>
-													{formhelp note=$packageServices.description}
-												</li>
+												{if !$gBitSystem->isPluginInstalled($plugin)}
+													<li>
+														<label><input type="checkbox" name="package_plugins[{$package}][]" value="{$plugin}" checked="checked" />&nbsp;
+														<strong>{$packageServices.name|default:$plugin|capitalize}</strong></label>
+														{formhelp note=$packageServices.description}
+													</li>
+												{/if}
 											{/foreach}
 											</ul>
 										</div>
