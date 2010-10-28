@@ -44,7 +44,6 @@ while ($res = $result->fetchRow()) {
 // no outcome on the site itself but determines what the default permission 
 // level is. the user can never modify these settings.
 foreach( $gBitInstaller->mPermissionsSchema as $perm => $permHash ){
-	// permission level is stored in [2]
 	$bindVars = array();
 	if( !empty( $bitPerms[$perm] ) && $permHash['level'] != $bitPerms[$perm]['perm_level'] ) {
 		$query = "UPDATE `".BIT_DB_PREFIX."users_permissions` SET `perm_level` = ? WHERE `perm_name` = ?";
@@ -72,27 +71,6 @@ foreach( array_keys( $bitPerms ) as $perm ) {
 }
 $gBitSmarty->assign( 'delPerms', $delPerms );
 $gBitSmarty->assign( 'insPerms', $insPerms );
-
-
-
-// ===================== Services =====================
-// check if we have installed more than one service of any given type
-// DEPRECATED - this check never really made sense. The original purpose
-// of the services was to have multiple under the same identifier to
-// be able to invoke them all in one shot. Recent updates to the services
-// flattens the array so that there is one and only one service set per
-// service type. This could revert back with time. For now this is commented
-// out.
-$serviceList = array();
-/*
-if( !empty( $gLibertySystem->mServices ) ) {
-	foreach( $gLibertySystem->mServices as $service_name => $service ) {
-		if( count( $service ) > 1 ) {
-			$serviceList[$service_name] = $service;
-		}
-	}
-}
-*/
 
 
 
@@ -139,7 +117,6 @@ if( !empty(  $_REQUEST['create_tables'] ) && !empty( $dbIntegrity )) {
 	}
 }
 
-// if any of the serviceList items have been unchecked, disable the appropriate packages
 if( !empty(  $_REQUEST['resolve_conflicts'] ) ) {
 	if( !empty( $gDebug ) || !empty( $_REQUEST['debug'] ) ) {
 		$gBitInstaller->debug();
@@ -162,10 +139,11 @@ if( !empty(  $_REQUEST['resolve_conflicts'] ) ) {
 			}
 
 			if( !empty( $insPerms[$perm] )) {
-				$gBitInstaller->mDb->query( $insPerms[$perm]['sql'] );
+				$permHash = $insPerms[$perm];
+				$gBitInstaller->installPermission( $perm, $permHash['description'], $permHash['level'], $permHash['package'] );
 				$fixedPermissions[] = $insPerms[$perm];
-				if( !empty( $groupMap[$insPerms[$perm][2]] )) {
-					$gBitUser->assignPermissionToGroup( $perm, $groupMap[$insPerms[$perm][2]] );
+				if( !empty( $groupMap[$insPerms[$perm]['level']] )) {
+					$gBitUser->assignPermissionToGroup( $perm, $groupMap[$insPerms[$perm]['level']] );
 				}
 			}
 		}
@@ -173,6 +151,7 @@ if( !empty(  $_REQUEST['resolve_conflicts'] ) ) {
 	$gBitSmarty->assign( 'fixedPermissions', $fixedPermissions );
 
 	// === Services
+	/*
 	$deActivated = array();
 	foreach( $serviceList as $service ) {
 		foreach( array_keys( $service ) as $package ) {
@@ -183,9 +162,10 @@ if( !empty(  $_REQUEST['resolve_conflicts'] ) ) {
 			}
 		}
 	}
+	 */
 
 	$gBitSmarty->assign( 'next_step', $step + 1 );
-	$gBitSmarty->assign( 'deActivated', $deActivated );
+	// $gBitSmarty->assign( 'deActivated', $deActivated );
 	// display the confirmation page
 	$app = '_done';
 } elseif( !empty(  $_REQUEST['skip'] ) ) {
@@ -197,8 +177,6 @@ if( !empty(  $_REQUEST['resolve_conflicts'] ) ) {
 $dbTables = $gBitInstaller->verifyInstalledPackages( 'all' );
 $dbIntegrity = install_check_database_integrity( $dbTables );
 $gBitSmarty->assign( 'dbIntegrity', $dbIntegrity );
-
-// $gBitSmarty->assign( 'serviceList', $serviceList );
 
 
 

@@ -98,13 +98,13 @@
 						<th style="width:15%;">Level</th>
 						<th style="width:14%;">Package</th>
 					</tr>
-					{foreach from=$insPerms item=perm}
+					{foreach from=$insPerms item=permhash key=perm}
 						<tr class="{cycle values="odd,even"}">
-							<td><input type="checkbox" value="{$perm.0}" id="{$perm.0}" name="perms[{$perm.0}]" checked="checked" /></td>
-							<td><label for="{$perm.0}"><strong>{$perm.0}</strong></label></td>
-							<td><label for="{$perm.0}">{$perm.1}</label></td>
-							<td><label for="{$perm.0}">{$perm.2}</label></td>
-							<td><label for="{$perm.0}">{$perm.3}</label></td>
+							<td><input type="checkbox" value="{$perm}" id="{$perm}" name="perms[{$perm}]" checked="checked" /></td>
+							<td><label for="{$perm}"><strong>{$perm}</strong></label></td>
+							<td><label for="{$perm}">{$permhash.description}</label></td>
+							<td><label for="{$perm}">{$permhash.level}</label></td>
+							<td><label for="{$perm}">{$permhash.package}</label></td>
 						</tr>
 					{/foreach}
 				{/if}
@@ -118,13 +118,13 @@
 						<th>Level</th>
 						<th>Package</th>
 					</tr>
-					{foreach from=$delPerms item=perm}
+					{foreach from=$delPerms item=permhash key=perm}
 						<tr class="{cycle values="odd,even"}">
-							<td><input type="checkbox" value="{$perm.0}" id="{$perm.0}" name="perms[{$perm.0}]" checked="checked" /></td>
-							<td><label for="{$perm.0}"><strong>{$perm.0}</strong></label></td>
-							<td><label for="{$perm.0}">{$perm.1}</label></td>
-							<td><label for="{$perm.0}">{$perm.2}</label></td>
-							<td><label for="{$perm.0}">{$perm.3}</label></td>
+							<td><input type="checkbox" value="{$perm}" id="{$perm}" name="perms[{$perm}]" checked="checked" /></td>
+							<td><label for="{$perm}"><strong>{$perm}</strong></label></td>
+							<td><label for="{$perm}">{$permhash.description}</label></td>
+							<td><label for="{$perm}">{$permhash.level}</label></td>
+							<td><label for="{$perm}">{$permhash.package}</label></td>
 						</tr>
 					{/foreach}
 				{/if}

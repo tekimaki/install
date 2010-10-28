@@ -991,18 +991,22 @@ class BitInstaller extends BitSystem {
 			$tablePrefix = $this->getTablePrefix();
 
 			foreach( $pSchemaHash['permissions'] as $perm => $permHash ){
-				$storeHash = array(
-					'perm_name' => $perm,
-					'perm_desc' => $permHash['description'],
-					'perm_level' => $permHash['level'],
-					'package' => $pPackageGuid,
-				);
-				$table = "users_permissions";
-				if( (!$return = $this->mDb->associateInsert( $table, $storeHash )) ){
-					$this->mErrors[] = "Error storing permission: ".$perm;
-					$this->mFailedCommands[] = 'associateInsert '.$perm;
-				}
+				$this->installPermission( $perm, $permHash['description'], $permHash['level'], $pPackageGuid );
 			}
+		}
+	}
+
+	function installPermission( $perm, $permDesc, $permLevel, $pkgGuid ){
+		$storeHash = array(
+			'perm_name' => $perm,
+			'perm_desc' => $permDesc,
+			'perm_level' => $permLevel,
+			'package' => $pkgGuid,
+		);
+		$table = "users_permissions";
+		if( (!$return = $this->mDb->associateInsert( $table, $storeHash )) ){
+			$this->mErrors[] = "Error storing permission: ".$perm;
+			$this->mFailedCommands[] = 'associateInsert '.$perm;
 		}
 	}
 

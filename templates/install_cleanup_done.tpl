@@ -12,8 +12,8 @@
 			{formlabel label="Updated Permissions"}
 			{forminput}
 				<ul id="fixedpermlist">
-					{foreach from=$fixedPermissions item=perm}
-						<li><strong>{$perm.0}</strong>: {$perm.1}<li>
+					{foreach from=$fixedPermissions item=permhash}
+						<li><strong>{$permhash.name}</strong>: {$permhash.description}<li>
 					{/foreach}
 				</ul>
 			{/forminput}
