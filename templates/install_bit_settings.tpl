@@ -90,7 +90,7 @@
 		</div>
 	{/if}
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		<input type="submit" name="bit_settings" value="{tr}Set Preferences{/tr}" />
 	</div>
 {/form}

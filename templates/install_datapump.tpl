@@ -27,7 +27,7 @@
 		{/forminput}
 	</div>
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		{if $pumpList}
 			<input type="submit" value="Populate my site" name="fSubmitDataPump" /> 
 		{/if}

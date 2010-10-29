@@ -297,7 +297,7 @@
 		{/jstab}
 	{/jstabs}
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		<input type="submit" value="Execute Migration" name="fSubmitDatabase" />
 	</div>
 {/form}

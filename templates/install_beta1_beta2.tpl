@@ -26,7 +26,7 @@
 		{/foreach}
 	{/legend}
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		Please press this button only once<br />
 		Depending on the number of packages and the hardware,<br />
 		this process might take up to a few minutes.<br /><br />

@@ -152,7 +152,7 @@
 				{/if}
 			{/if}
 
-			<div class="row submit">
+			<div class="buttonHolder row submit">
 				<input type="submit" name="upgrade_packages" value="Upgrade Packages" />
 			</div>
 

@@ -55,7 +55,7 @@
 				</p>
 			{/if}
 
-			<div class="row submit">
+			<div class="buttonHolder row submit">
 				<input type="submit" name="create_tables" value="Try to create missing table/s" />
 			</div>
 
@@ -183,7 +183,7 @@
 		{/if}
 
 		{if $delPerms || $insPerms || $serviceList}
-			<div class="row submit">
+			<div class="buttonHolder row submit">
 				<input type="submit" name="resolve_conflicts" value="Resolve Issues" />
 			</div>
 
@@ -194,7 +194,7 @@
 				{/forminput}
 			</div>
 		{else}
-			<div class="row submit">
+			<div class="buttonHolder row submit">
 				<input type="submit" name="skip" value="Continue install process" />
 			</div>
 		{/if}

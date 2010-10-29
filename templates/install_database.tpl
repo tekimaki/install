@@ -164,7 +164,7 @@
 		{/forminput}
 	</div>
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		<input type="hidden" name="dbcase" value="{$gBitDbCaseSensitivity}" />
 		<input type="hidden" name="resetdb" value="{$resetdb}" />
 		<input type="submit" value="Confirm Settings" name="submit_db_info" />

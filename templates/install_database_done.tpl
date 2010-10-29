@@ -91,7 +91,7 @@
 		</div>
 	{/if}
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		<input type="submit" value="Continue {$section|default:"install"} process" />
 	</div>
 {/form}

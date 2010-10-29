@@ -27,7 +27,7 @@
 
 			{if $error}
 				<p class="error">Before you can continue with the installation, you must rectify the <strong>problems listed in red</strong>. After you have made the changes, you can reload the page.</p>
-				<div class="row submit">
+				<div class="buttonHolder row submit">
 					<input type="submit" name="reload" value="Reload Page" />
 				</div>
 			{else}
@@ -224,7 +224,7 @@
 	{/jstabs}
 
 	{if !$error}
-		<div class="row submit">
+		<div class="buttonHolder row submit">
 			<input type="submit" name="reload" value="Reload page" />
 			&nbsp;
 			<input type="submit" name="continue" value="Continue install process" />

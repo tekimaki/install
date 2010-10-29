@@ -114,7 +114,7 @@
 					</p>
 				{/if}
 
-				<div class="row submit">
+				<div class="buttonHolder row submit">
 					Please press this button only once.<br />
 					Depending on the number of packages and the hardware,<br />
 					this process might take up to a few minutes.<br /><br />
@@ -206,7 +206,7 @@
 						{/if}
 					{/foreach}
 
-					<div class="row submit">
+					<div class="buttonHolder row submit">
 						Please press this button only once.<br />
 						Depending on the number of packages and the hardware,<br />
 						this process might take up to a few minutes.<br /><br />
@@ -253,7 +253,7 @@
 	{if !$first_install}
 		{form}
 			<input type="hidden" name="step" value="{$next_step}" />
-			<div class="row submit">
+			<div class="buttonHolder row submit">
 				&nbsp;&nbsp;<input type="submit" name="cancel" value="Skip this stage" />
 			</div>
 		{/form}

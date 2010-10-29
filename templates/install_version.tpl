@@ -71,7 +71,7 @@
 				{/foreach}
 			</table>
 
-			<div class="row submit">
+			<div class="buttonHolder row submit">
 				<input type="submit" name="fix_version_210beta" value="Fix Permissions" />
 			</div>
 
@@ -83,11 +83,11 @@
 			</div>
 		{else}
 			{if $upToDate}
-				<div class="row submit">
+				<div class="buttonHolder row submit">
 					<input type="submit" name="skip" value="Continue install process" />
 				</div>
 			{else}
-				<div class="row submit">
+				<div class="buttonHolder row submit">
 					<input type="submit" name="update_version" value="Update version and continue" />
 				</div>
 			{/if}

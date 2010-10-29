@@ -18,7 +18,7 @@
 		</ul>
 	</div>
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		<input type="submit" value="Continue process" />
 	</div>
 {/form}

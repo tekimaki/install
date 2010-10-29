@@ -30,7 +30,7 @@
 		</div>
 	{/if}
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		<input type="submit" value="Continue upgrade process" />
 	</div>
 {/form}

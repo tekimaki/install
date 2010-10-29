@@ -43,7 +43,7 @@
 		</div>
 	{/foreach}
 
-	<div class="row submit">
+	<div class="buttonHolder row submit">
 		<input type="submit" value="Continue install process" />
 	</div>
 {/form}
