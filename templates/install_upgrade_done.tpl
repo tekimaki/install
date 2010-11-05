@@ -17,7 +17,8 @@
 			{/foreach}
 		{/foreach}
 	</dl>
-	{elseif $plugin_success}
+	{/if}
+	{if $plugin_success}
 	<p class="success">The following plugins were successfully upgraded</p>
 	<dl>
 		{foreach from=$plugin_success item=upgrade key=package}
@@ -32,7 +33,8 @@
 			{/foreach}
 		{/foreach}
 	</dl>
-	{else}
+	{/if}
+	{if !$success && !$plugin_success}
 		<p class="success">No Upgrades</p>
 	{/if}
 	<div class="buttonHolder row submit">
