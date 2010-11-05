@@ -16,7 +16,15 @@ class BitInstaller extends BitSystem {
 	 * @access public
 	 */
 	var $mPackageUpgrades = array();
-
+	
+	/**
+	 * mPluginUpgrades 
+	 * 
+	 * @var array
+	 * @access public
+	 */
+	var $mPluginUpgrades = array();
+	 
 	/**
 	 * mRequirements 
 	 * 
@@ -100,6 +108,36 @@ class BitInstaller extends BitSystem {
 					}
 				}
 			}
+			//Retrieve update scripts for the plugins
+			//@TODO: Plugin's defined within the package schema file are not taken into account 
+			$schemaMaster = $this->getPackagesSchemas();
+			if(!empty($schemaMaster[$pPackage]['plugins'])){
+				foreach($schemaMaster[$pPackage]['plugins'] as $key=>$plugin){
+					$dir = constant("BIT_ROOT_PATH")."config/".$pPackage."/plugins/".$key."/admin/upgrades/";
+					if(!empty($plugin['version'])){
+						$current_version = $plugin['version'];
+					}else{
+						$current_version = "0.0.0";
+					}
+					if( $this->isPackageActive( $pPackage ) && is_dir( $dir ) && $upDir = opendir( $dir )) {
+						while( FALSE !== ( $file = readdir( $upDir ))) {
+							if( is_file( $dir.$file )) {
+								$upVersion = str_replace( array(".php",".yaml"), "", $file );
+								// we only want to load files of versions that are greater than is installed
+								if( $this->validateVersion( $upVersion ) && version_compare( $current_version, $upVersion, '<' )) {
+									if(strpos($file, ".yaml")!== false){
+										$plugin_upgrade = Spyc::YAMLLoad( $dir.$file );
+										global $gBitInstaller;
+										$gBitInstaller->registerPluginUpgrade( $plugin_upgrade[$upVersion] );
+									}else{
+										include_once( $dir.$file );
+									}								
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -164,6 +202,68 @@ class BitInstaller extends BitSystem {
 		return( count( $this->mErrors ) == 0 );
 	}
 
+		/**
+	 * registerPluginUpgrade 
+	 * 
+	 * @param array $pParams Hash of information about upgrade
+	 * @param string $pParams[plugin] Name of plugin that is upgrading
+	 * @param string $pParams[version] Version of this upgrade
+	 * @param string $pParams[description] Description of what the upgrade does
+	 * @param string $pParams[post_upgrade] Textual note of stuff that needs to be observed after the upgrade
+	 * @param array $pParams[upgrade] Hash of update rules. See existing upgrades on how this works.
+	 * @access public
+	 * @return void
+	 */
+	function registerPluginUpgrade( $pParams) {
+		if( $this->verifyPluginUpgrade( $pParams )) {
+			$pluginParams = $pParams;
+			unset($pluginParams['upgrade']);
+			$this->mPluginUpgrades[$pParams['plugin']][$pParams['version']]            = $pluginParams;
+			$this->mPluginUpgrades[$pParams['plugin']][$pParams['version']]['upgrade'] = $pParams['upgrade'];
+
+			// sort everything for a nice display
+			ksort( $this->mPluginUpgrades );
+			uksort( $this->mPluginUpgrades[$pParams['plugin']], 'version_compare' );
+		}
+	}
+
+	/**
+	 * verifyPluginUpgrade 
+	 * 
+	 * @param array $pParams Hash of information about upgrade
+	 * @param string $pParams[plugin] Name of plugin that is upgrading
+	 * @param string $pParams[version] Version of this upgrade
+	 * @param string $pParams[description] Description of what the upgrade does
+	 * @param string $pParams[post_upgrade] Textual note of stuff that needs to be observed after the upgrade
+	 * @access public
+	 * @return TRUE on success, FALSE on failure - mErrors will contain reason for failure
+	 */
+	function verifyPluginUpgrade( &$pParams ) {
+		if( empty( $pParams['plugin'] )) {
+			$this->mErrors['plugin'] = "Please provide a valid plugin name.";
+		} else {
+			$pParams['plugin'] = strtolower( $pParams['plugin'] );
+		}
+
+		if( empty( $pParams['version'] ) || !$this->validateVersion( $pParams['version'] )) {
+			$this->mErrors['version'] = "Please provide a valid version number.";
+		} elseif( empty( $this->mErrors ) && !empty( $this->mPluginUpgrades[$pParams['plugin']][$pParams['version']] )) {
+			$this->mErrors['version'] = "Please make sure you use a unique version number to register your new database changes.";
+		}
+
+		if( empty( $pParams['description'] )) {
+			$this->mErrors['description'] = "Please add a brief description of what this upgrade is all about.";
+		}
+
+		// since this should only show up when devs are working, we'll simply display the output:
+		if( !empty( $this->mErrors )) {
+			vd( $this->mErrors );
+			bt();
+		}
+
+		return( count( $this->mErrors ) == 0 );
+	}
+	
 	/**
 	 * registerUpgrade 
 	 * 
