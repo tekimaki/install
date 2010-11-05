@@ -114,11 +114,7 @@ class BitInstaller extends BitSystem {
 			if(!empty($schemaMaster[$pPackage]['plugins'])){
 				foreach($schemaMaster[$pPackage]['plugins'] as $key=>$plugin){
 					$dir = constant("BIT_ROOT_PATH")."config/".$pPackage."/plugins/".$key."/admin/upgrades/";
-					if(!empty($plugin['version'])){
-						$current_version = $plugin['version'];
-					}else{
-						$current_version = "0.0.0";
-					}
+					$current_version = $this->getPluginVersion($key);
 					if( $this->isPackageActive( $pPackage ) && is_dir( $dir ) && $upDir = opendir( $dir )) {
 						while( FALSE !== ( $file = readdir( $upDir ))) {
 							if( is_file( $dir.$file )) {
@@ -452,16 +448,48 @@ class BitInstaller extends BitSystem {
 
 		return NULL;
 	}
+	
+	/**
+	 * upgradePluginVersion 
+	 * 
+	 * @param array $pPlugin 
+	 * @param array $pVersion 
+	 * @access public
+	 * @return TRUE on success, FALSE on failure - mErrors will contain reason for failure
+	 */
+	function upgradePluginVersion( $pPlugin ) {
+		if( !empty( $pPlugin ) && !empty( $this->mPluginUpgrades[$pPlugin] )) {
+			// make sure everything is in the right order
+			uksort( $this->mPluginUpgrades[$pPlugin], 'upgrade_version_sort' );
+			foreach( array_keys( $this->mPluginUpgrades[$pPlugin] ) as $version ) {
+				// version we are upgrading from
+				$this->mPluginUpgrades[$pPlugin][$version]['from_version'] = $this->getPluginVersion( $pPlugin );
+				
+				// apply upgrade
+				$errors[$version] = $this->applyUpgrade( $pPlugin, $this->mPluginUpgrades[$pPlugin][$version]['upgrade'], 'plugin' );
+				if( !empty( $errors[$version] )) {
+					return $errors;
+				} else {
+					// if the upgrade ended without incidence, we store the package version.
+					// this way any successfully applied upgrade can only be applied once.
+					$this->storePluginVersion( $pPlugin, $version );
+				}
+			}
+		}
+
+		return NULL;
+	}
 
 	/**
 	 * applyUpgrade 
 	 * 
-	 * @param array $pPackage 
+	 * @param array $pPackageOrPlugin 
 	 * @param array $pUpgradeHash 
+	 * @param string $pType 
 	 * @access public
 	 * @return empty array on success, array with errors on failure
 	 */
-	function applyUpgrade( $pPackage, $pUpgradeHash ) {
+	function applyUpgrade( $pPackageOrPlugin, $pUpgradeHash , $pType = 'package' ) {
 		global $gBitDb, $gBitDbType;
 		$ret = array();
 
@@ -472,10 +500,9 @@ class BitInstaller extends BitSystem {
 			$tablePrefix = $this->getTablePrefix();
 			$dict = NewDataDictionary( $gBitDb->mDb );
 			$failedcommands = array();
-
 			for( $i = 0; $i < count( $pUpgradeHash ); $i++ ) {
 				if( !is_array( $pUpgradeHash[$i] ) ) {
-					vd( "[$pPackage][$i] is NOT an array" );
+					vd( "[$pPackageOrPlugin][$i] is NOT an array" );
 					vd( $pUpgradeHash[$i] );
 					bt();
 					die;
@@ -676,11 +703,14 @@ class BitInstaller extends BitSystem {
 						break;
 				}
 			}
-
-			// turn on features that are turned on
-			// legacy stuff
-			if( $this->isFeatureActive( 'feature_'.$pPackage )) {
-				$this->storeConfig( 'package_'.$pPackage, 'y', KERNEL_PKG_NAME );
+			
+			//Execute functionality specific to packages
+			if($pType == 'package'){
+				// turn on features that are turned on
+				// legacy stuff
+				if( $this->isFeatureActive( 'feature_'.$pPackageOrPlugin )) {
+					$this->storeConfig( 'package_'.$pPackageOrPlugin, 'y', KERNEL_PKG_NAME );
+				}
 			}
 
 			if( !empty( $failedcommands )) {
@@ -691,7 +721,7 @@ class BitInstaller extends BitSystem {
 
 		return $ret;
 	}
-
+	
 	/**
 	 * identifyBlobs 
 	 * 

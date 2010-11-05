@@ -38,14 +38,12 @@ if( !empty( $_REQUEST['upgrade_packages'] )) {
 		//uasort( $_REQUEST['plugins'], 'upgrade_plugin_sort' );
 
 		foreach( $_REQUEST['plugins'] as $plugin ) {
-			$plugin_errors[$plugin] = 'foo';
-			/*
-			if( $plugin_error = $gBitInstaller->upgradePackageVersions( $plugin )) {
+			if( $plugin_error = $gBitInstaller->upgradePluginVersion( $plugin )) {
 				$plugin_errors[$plugin] = $plugin_error;
-			} elseif( !empty( $gBitInstaller->mPackageUpgrades[$plugin] )) {
-				// copy the upgrade hash to success. next round this isn't available anymore from mPackageUpgrades since the plugin is up to date and the upgrade files aren't loaded anymore.
-				$plugin_success[$plugin] = $gBitInstaller->mPackageUpgrades[$plugin];
-			}*/
+			} elseif( !empty( $gBitInstaller->mPluginUpgrades[$plugin] )) {
+				// copy the upgrade hash to success. next round this isn't available anymore from mPluginUpgrades since the plugin is up to date and the upgrade files aren't loaded anymore.
+				$plugin_success[$plugin] = $gBitInstaller->mPluginUpgrades[$plugin];
+			}
 		}
 	}
 
@@ -55,7 +53,6 @@ if( !empty( $_REQUEST['upgrade_packages'] )) {
 		$gBitSmarty->assign( 'next_step', $step + 1 );
 	}
 }
-
 $gBitSmarty->assign( 'requirements', $gBitInstaller->calculateRequirements() );
 $gBitSmarty->assign( 'requirementsMap', $gBitInstaller->drawRequirementsGraph( FALSE, 'cmapx', ( !empty( $_REQUEST['command'] ) ? $_REQUEST['command'] : 'dot' )));
 $gBitSmarty->assign( 'packageUpgrades', $gBitInstaller->mPackageUpgrades );
