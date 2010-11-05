@@ -140,6 +140,34 @@ class BitInstaller extends BitSystem {
 			}
 		}
 	}
+	
+	//Gets the upgrades needed for specific plugins
+	function loadUpgradablePlugins(){
+		$ret = array();
+		$schemas = $this->getPackagesSchemas();
+		foreach($schemas AS $pPackage){
+			if(!empty($pPackage['plugins'])){
+				foreach($pPackage['plugins'] as $guid=>$plugin){
+					if(!empty($plugin['version'])){
+						$dir = constant("BIT_ROOT_PATH")."config/".$pPackage['guid']."/plugins/".$guid."/admin/upgrades/";
+						if( is_dir( $dir ) && $upDir = opendir( $dir )) {
+							while( FALSE !== ( $file = readdir( $upDir ))) {
+								$upVersion = str_replace( array(".php",".yaml"), "", $file );
+								if( version_compare( $plugin['version'], $upVersion, "<" )) {
+									$ret[$guid] = $plugin;
+									$ret[$guid]['info'] = array(
+										'version' => $plugin['version'],
+										'upgrade' => $upVersion
+									);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return $ret;
+	}
 
 	/**
 	 * registerPackageUpgrade 

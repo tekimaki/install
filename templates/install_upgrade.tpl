@@ -41,7 +41,7 @@
 			{elseif !$success}
 				<p class="success">Seems all installed packages are up to date!</p>
 			{/if}
-
+			
 			{if $success}
 				<h2>Post Install Notes</h2>
 				<p class="success">Some packages were successfully updated which might have important post upgrade notes.</p>
@@ -50,6 +50,62 @@
 						{foreach from=$upgrade item=data key=version}
 							{if $data.post_upgrade}
 								<dt>{$package}</dt>
+								<dd>
+									Upgrade &rarr; {$version}<br />
+									<strong>Post install notes</strong><br />
+									{$data.post_upgrade}
+								</dd>
+							{/if}
+						{/foreach}
+					{/foreach}
+				</dl>
+			{/if}
+			
+			{if $pluginUpgrades}
+				<h2>Plugins and their upgrades</h2>
+				<p class="danger">You are about to run an upgrade which might make changes to your database. We <strong>strongly</strong> recommend that you back up your database (preferably carry out the entire <a class="external" href="http://www.bitweaver.org/wiki/bitweaverUpgrade#Generalproceduretoupgrade">backup procedure</a>).</p>
+				{foreach from=$pluginUpgrades item=upgrade key=plugin}
+					{* users don't have the option to select what plugins to upgrade since the code of the plugin is dependent on this upgrade
+					<h3><label><input type="checkbox" name="plugins[]" value="{$plugin}" checked="checked" /> {$plugin}</label></h3> *}
+
+					<h3>{$plugin}</h3>
+					<input type="hidden" name="plugins[]" value="{$plugin}" />
+					<dl>
+						<dt>{$gBitSystem->getPluginVersion($plugin)}</dt>
+						<dd><small>Currently installed version</small></dd>
+						{foreach from=$upgrade item=data key=version}
+							<dt>{$data.version}</dt>
+							<dd>{$data.description}</dd>
+							{if $errors.$plugin.$version}
+								<p class="error">SQL errors that occurred during the {$version} upgrade:<br />
+									<kbd>
+										{if $errors.$plugin.$version.failedcommands}
+											{foreach from=$errors.$plugin.$version.failedcommands item=command}
+												{$command}<br />
+											{/foreach}
+										{/if}
+									</kbd>
+								</p>
+							{/if}
+						{/foreach}
+					</dl>
+				{/foreach}
+
+				{if $plugin_errors}
+					<p class="danger">The upgrade process was halted due to the SQL problems listed above. Please contact the bitweaver team to fix this issue.</p>
+				{/if}
+			{elseif !$plugin_success}
+				<p class="success">Seems all installed plugins are up to date!</p>
+			{/if}
+			
+			{if $plugin_success}
+				<h2>Post Install Notes</h2>
+				<p class="success">Some plugins were successfully updated which might have important post upgrade notes.</p>
+				<dl>
+					{foreach from=$plugin_success item=upgrade key=plugin}
+						{foreach from=$upgrade item=data key=version}
+							{if $data.post_upgrade}
+								<dt>{$plugin}</dt>
 								<dd>
 									Upgrade &rarr; {$version}<br />
 									<strong>Post install notes</strong><br />
