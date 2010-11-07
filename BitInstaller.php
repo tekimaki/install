@@ -833,7 +833,7 @@ class BitInstaller extends BitSystem {
 		// Install tables - $build is empty when we don't pick tables, when un / reinstalling packages
 		if( !empty( $pPluginHash['tables'] ) && is_array( $pPluginHash['tables'] ) && !empty( $build )) {
 			foreach( $pPluginHash['tables'] as $tableName=>$tableHash ) {
-				if( (!empty( $installedTables['present'][$pPluginHash['guid']] ) && !in_array( $tableName, $installedTables['present'][$pPluginHash['guid']] )) ||
+				if( (!empty( $installedTables['present'][$pPluginHash['package']] ) && !in_array( $tableName, $installedTables['present'][$pPluginHash['package']] )) ||
 					(!empty( $installedTables['unused'] ) &&  !in_array( $tableName, $installedTables['unused'] ))){
 					$this->installTable( $tableName, $tableHash, $build );
 				}
