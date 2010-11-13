@@ -16,7 +16,15 @@ class BitInstaller extends BitSystem {
 	 * @access public
 	 */
 	var $mPackageUpgrades = array();
-
+	
+	/**
+	 * mPluginUpgrades 
+	 * 
+	 * @var array
+	 * @access public
+	 */
+	var $mPluginUpgrades = array();
+	 
 	/**
 	 * mRequirements 
 	 * 
@@ -100,7 +108,61 @@ class BitInstaller extends BitSystem {
 					}
 				}
 			}
+			//Retrieve update scripts for the plugins
+			//@TODO: Plugin's defined within the package schema file are not taken into account 
+			$schemaMaster = $this->getPackagesSchemas();
+			if(!empty($schemaMaster[$pPackage]['plugins'])){
+				foreach($schemaMaster[$pPackage]['plugins'] as $key=>$plugin){
+					$dir = constant("BIT_ROOT_PATH")."config/".$pPackage."/plugins/".$key."/admin/upgrades/";
+					$current_version = $this->getPluginVersion($key);
+					if( $this->isPackageActive( $pPackage ) && is_dir( $dir ) && $upDir = opendir( $dir )) {
+						while( FALSE !== ( $file = readdir( $upDir ))) {
+							if( is_file( $dir.$file )) {
+								$upVersion = str_replace( array(".php",".yaml"), "", $file );
+								// we only want to load files of versions that are greater than is installed
+								if( $this->validateVersion( $upVersion ) && version_compare( $current_version, $upVersion, '<' )) {
+									if(strpos($file, ".yaml")!== false){
+										$plugin_upgrade = Spyc::YAMLLoad( $dir.$file );
+										global $gBitInstaller;
+										$gBitInstaller->registerPluginUpgrade( $plugin_upgrade[$upVersion] );
+									}else{
+										include_once( $dir.$file );
+									}								
+								}
+							}
+						}
+					}
+				}
+			}
 		}
+	}
+	
+	//Gets the upgrades needed for specific plugins
+	function loadUpgradablePlugins(){
+		$ret = array();
+		$schemas = $this->getPackagesSchemas();
+		foreach($schemas AS $pPackage){
+			if(!empty($pPackage['plugins'])){
+				foreach($pPackage['plugins'] as $guid=>$plugin){
+					if(!empty($plugin['version'])){
+						$dir = constant("BIT_ROOT_PATH")."config/".$pPackage['guid']."/plugins/".$guid."/admin/upgrades/";
+						if( is_dir( $dir ) && $upDir = opendir( $dir )) {
+							while( FALSE !== ( $file = readdir( $upDir ))) {
+								$upVersion = str_replace( array(".php",".yaml"), "", $file );
+								if( version_compare( $plugin['version'], $upVersion, "<" )) {
+									$ret[$guid] = $plugin;
+									$ret[$guid]['info'] = array(
+										'version' => $plugin['version'],
+										'upgrade' => $upVersion
+									);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return $ret;
 	}
 
 	/**
@@ -164,6 +226,68 @@ class BitInstaller extends BitSystem {
 		return( count( $this->mErrors ) == 0 );
 	}
 
+		/**
+	 * registerPluginUpgrade 
+	 * 
+	 * @param array $pParams Hash of information about upgrade
+	 * @param string $pParams[plugin] Name of plugin that is upgrading
+	 * @param string $pParams[version] Version of this upgrade
+	 * @param string $pParams[description] Description of what the upgrade does
+	 * @param string $pParams[post_upgrade] Textual note of stuff that needs to be observed after the upgrade
+	 * @param array $pParams[upgrade] Hash of update rules. See existing upgrades on how this works.
+	 * @access public
+	 * @return void
+	 */
+	function registerPluginUpgrade( $pParams) {
+		if( $this->verifyPluginUpgrade( $pParams )) {
+			$pluginParams = $pParams;
+			unset($pluginParams['upgrade']);
+			$this->mPluginUpgrades[$pParams['plugin']][$pParams['version']]            = $pluginParams;
+			$this->mPluginUpgrades[$pParams['plugin']][$pParams['version']]['upgrade'] = $pParams['upgrade'];
+
+			// sort everything for a nice display
+			ksort( $this->mPluginUpgrades );
+			uksort( $this->mPluginUpgrades[$pParams['plugin']], 'version_compare' );
+		}
+	}
+
+	/**
+	 * verifyPluginUpgrade 
+	 * 
+	 * @param array $pParams Hash of information about upgrade
+	 * @param string $pParams[plugin] Name of plugin that is upgrading
+	 * @param string $pParams[version] Version of this upgrade
+	 * @param string $pParams[description] Description of what the upgrade does
+	 * @param string $pParams[post_upgrade] Textual note of stuff that needs to be observed after the upgrade
+	 * @access public
+	 * @return TRUE on success, FALSE on failure - mErrors will contain reason for failure
+	 */
+	function verifyPluginUpgrade( &$pParams ) {
+		if( empty( $pParams['plugin'] )) {
+			$this->mErrors['plugin'] = "Please provide a valid plugin name.";
+		} else {
+			$pParams['plugin'] = strtolower( $pParams['plugin'] );
+		}
+
+		if( empty( $pParams['version'] ) || !$this->validateVersion( $pParams['version'] )) {
+			$this->mErrors['version'] = "Please provide a valid version number.";
+		} elseif( empty( $this->mErrors ) && !empty( $this->mPluginUpgrades[$pParams['plugin']][$pParams['version']] )) {
+			$this->mErrors['version'] = "Please make sure you use a unique version number to register your new database changes.";
+		}
+
+		if( empty( $pParams['description'] )) {
+			$this->mErrors['description'] = "Please add a brief description of what this upgrade is all about.";
+		}
+
+		// since this should only show up when devs are working, we'll simply display the output:
+		if( !empty( $this->mErrors )) {
+			vd( $this->mErrors );
+			bt();
+		}
+
+		return( count( $this->mErrors ) == 0 );
+	}
+	
 	/**
 	 * registerUpgrade 
 	 * 
@@ -324,16 +448,48 @@ class BitInstaller extends BitSystem {
 
 		return NULL;
 	}
+	
+	/**
+	 * upgradePluginVersion 
+	 * 
+	 * @param array $pPlugin 
+	 * @param array $pVersion 
+	 * @access public
+	 * @return TRUE on success, FALSE on failure - mErrors will contain reason for failure
+	 */
+	function upgradePluginVersion( $pPlugin ) {
+		if( !empty( $pPlugin ) && !empty( $this->mPluginUpgrades[$pPlugin] )) {
+			// make sure everything is in the right order
+			uksort( $this->mPluginUpgrades[$pPlugin], 'upgrade_version_sort' );
+			foreach( array_keys( $this->mPluginUpgrades[$pPlugin] ) as $version ) {
+				// version we are upgrading from
+				$this->mPluginUpgrades[$pPlugin][$version]['from_version'] = $this->getPluginVersion( $pPlugin );
+				
+				// apply upgrade
+				$errors[$version] = $this->applyUpgrade( $pPlugin, $this->mPluginUpgrades[$pPlugin][$version]['upgrade'], 'plugin' );
+				if( !empty( $errors[$version] )) {
+					return $errors;
+				} else {
+					// if the upgrade ended without incidence, we store the package version.
+					// this way any successfully applied upgrade can only be applied once.
+					$this->storePluginVersion( $pPlugin, $version );
+				}
+			}
+		}
+
+		return NULL;
+	}
 
 	/**
 	 * applyUpgrade 
 	 * 
-	 * @param array $pPackage 
+	 * @param array $pPackageOrPlugin 
 	 * @param array $pUpgradeHash 
+	 * @param string $pType 
 	 * @access public
 	 * @return empty array on success, array with errors on failure
 	 */
-	function applyUpgrade( $pPackage, $pUpgradeHash ) {
+	function applyUpgrade( $pPackageOrPlugin, $pUpgradeHash , $pType = 'package' ) {
 		global $gBitDb, $gBitDbType;
 		$ret = array();
 
@@ -344,10 +500,9 @@ class BitInstaller extends BitSystem {
 			$tablePrefix = $this->getTablePrefix();
 			$dict = NewDataDictionary( $gBitDb->mDb );
 			$failedcommands = array();
-
 			for( $i = 0; $i < count( $pUpgradeHash ); $i++ ) {
 				if( !is_array( $pUpgradeHash[$i] ) ) {
-					vd( "[$pPackage][$i] is NOT an array" );
+					vd( "[$pPackageOrPlugin][$i] is NOT an array" );
 					vd( $pUpgradeHash[$i] );
 					bt();
 					die;
@@ -548,11 +703,14 @@ class BitInstaller extends BitSystem {
 						break;
 				}
 			}
-
-			// turn on features that are turned on
-			// legacy stuff
-			if( $this->isFeatureActive( 'feature_'.$pPackage )) {
-				$this->storeConfig( 'package_'.$pPackage, 'y', KERNEL_PKG_NAME );
+			
+			//Execute functionality specific to packages
+			if($pType == 'package'){
+				// turn on features that are turned on
+				// legacy stuff
+				if( $this->isFeatureActive( 'feature_'.$pPackageOrPlugin )) {
+					$this->storeConfig( 'package_'.$pPackageOrPlugin, 'y', KERNEL_PKG_NAME );
+				}
 			}
 
 			if( !empty( $failedcommands )) {
@@ -563,7 +721,7 @@ class BitInstaller extends BitSystem {
 
 		return $ret;
 	}
-
+	
 	/**
 	 * identifyBlobs 
 	 * 
