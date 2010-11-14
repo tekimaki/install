@@ -164,7 +164,35 @@ class BitInstaller extends BitSystem {
 		}
 		return $ret;
 	}
-
+	
+	/**
+	* loadPackageSchema
+	*
+	* @param string pName  Name of Package/Plugin
+	* @param string pType  Type(Package or Plugin)
+	* 
+	* return loaded schema yaml
+	**/
+	function loadPackagePluginSchema ($pName , $pType){
+		if( !empty( $pName ) && !empty( $pType )) {
+			$schemas = $this->getPackagesSchemas();
+			if($pType == 'package'){
+				if(!empty($schemas[$pName]['tables'])){
+					return $schemas[$pName]['tables'];
+				}
+			}elseif($pType == 'plugin'){
+					foreach($schemas AS $pPackage){
+						if(!empty($pPackage['plugins'][$pName])){
+							if(!empty($pPackage['plugins'][$pName]['tables'])){
+								return $pPackage['plugins'][$pName]['tables'];
+							}
+						}
+					}
+			}
+		}
+		return false;
+	}	
+	
 	/**
 	 * registerPackageUpgrade 
 	 * 
@@ -510,12 +538,35 @@ class BitInstaller extends BitSystem {
 
 				$type = key( $pUpgradeHash[$i] );
 				$step = &$pUpgradeHash[$i][$type];
-
+				
 				switch( $type ) {
 					case 'DATADICT':
 						for( $j = 0; $j < count( $step ); $j++ ) {
 							$dd = &$step[$j];
 							switch( key( $dd ) ) {
+								case 'TABLE':
+									foreach( $dd as $create ) {
+										$pTables = $this->loadPackagePluginSchema ($pPackageOrPlugin , $pType);
+										if(!empty($pTables)){
+											foreach( $create as $tableName ) {
+												if(!empty($pTables[$tableName])){
+													$completeTableName = $tablePrefix.$tableName;
+													$sql = $dict->CreateTableSQL( $completeTableName, $pTables[$tableName], 'REPLACE' );
+													if( $sql && ( $dict->ExecuteSQLArray( $sql, FALSE ) > 0 ) ) {
+													} else {
+														$errors[] = 'Failed to create '.$completeTableName;
+														$failedcommands[] = implode( " ", $sql );
+													}
+												}else{
+													$errors[] = 'Table '.$tableName.' does not exist in the schema.';
+												}
+											
+											}
+										}else{
+											$errors[] = $pPackageOrPlugin.' schema does not exist or does not have any tables in the schema.yaml';
+										}
+									}
+									break;							
 								case 'CREATE':
 									foreach( $dd as $create ) {
 										foreach( array_keys( $create ) as $tableName ) {
