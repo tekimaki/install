@@ -165,33 +165,6 @@ class BitInstaller extends BitSystem {
 		return $ret;
 	}
 	
-	/**
-	* loadPackageSchema
-	*
-	* @param string pName  Name of Package/Plugin
-	* @param string pType  Type(Package or Plugin)
-	* 
-	* return loaded schema yaml
-	**/
-	function loadPackagePluginSchema ($pName , $pType){
-		if( !empty( $pName ) && !empty( $pType )) {
-			$schemas = $this->getPackagesSchemas();
-			if($pType == 'package'){
-				if(!empty($schemas[$pName]['tables'])){
-					return $schemas[$pName]['tables'];
-				}
-			}elseif($pType == 'plugin'){
-					foreach($schemas AS $pPackage){
-						if(!empty($pPackage['plugins'][$pName])){
-							if(!empty($pPackage['plugins'][$pName]['tables'])){
-								return $pPackage['plugins'][$pName]['tables'];
-							}
-						}
-					}
-			}
-		}
-		return false;
-	}	
 	
 	/**
 	 * registerPackageUpgrade 
@@ -546,12 +519,20 @@ class BitInstaller extends BitSystem {
 							switch( key( $dd ) ) {
 								case 'TABLE':
 									foreach( $dd as $create ) {
-										$pTables = $this->loadPackagePluginSchema ($pPackageOrPlugin , $pType);
-										if(!empty($pTables)){
+										$schema = array();
+										switch( $pType ){
+										case 'package':
+											$tables = $this->getPackageSchemaValue( $pPackageOrPlugin, 'tables' );
+											break;
+										case 'plugin':
+											$tables = $this->getPackagePluginSchemaValue( $pPackageOrPlugin, 'tables' );
+											break;
+										}
+										if(!empty($tables)){
 											foreach( $create as $tableName ) {
-												if(!empty($pTables[$tableName])){
+												if(!empty($table[$tableName])){
 													$completeTableName = $tablePrefix.$tableName;
-													$sql = $dict->CreateTableSQL( $completeTableName, $pTables[$tableName], 'REPLACE' );
+													$sql = $dict->CreateTableSQL( $completeTableName, $table[$tableName], 'REPLACE' );
 													if( $sql && ( $dict->ExecuteSQLArray( $sql, FALSE ) > 0 ) ) {
 													} else {
 														$errors[] = 'Failed to create '.$completeTableName;
