@@ -115,7 +115,7 @@ class BitInstaller extends BitSystem {
 				foreach($schemaMaster[$pPackage]['plugins'] as $key=>$plugin){
 					$dir = constant("BIT_ROOT_PATH")."config/".$pPackage."/plugins/".$key."/admin/upgrades/";
 					$current_version = $this->getPluginVersion($key);
-					if( $this->isPackageActive( $pPackage ) && is_dir( $dir ) && $upDir = opendir( $dir )) {
+					if( $this->isPackageActive( $pPackage ) && !empty($this->mPackagePluginsConfig[$key]) && $this->mPackagePluginsConfig[$key]['active']=='y' && is_dir( $dir ) && $upDir = opendir( $dir )) {
 						while( FALSE !== ( $file = readdir( $upDir ))) {
 							if( is_file( $dir.$file )) {
 								$upVersion = str_replace( array(".php",".yaml"), "", $file );
