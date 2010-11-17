@@ -115,7 +115,7 @@ class BitInstaller extends BitSystem {
 				foreach($schemaMaster[$pPackage]['plugins'] as $key=>$plugin){
 					$dir = constant("BIT_ROOT_PATH")."config/".$pPackage."/plugins/".$key."/admin/upgrades/";
 					$current_version = $this->getPluginVersion($key);
-					if( $this->isPackageActive( $pPackage ) && !empty($this->mPackagePluginsConfig[$key]) && $this->mPackagePluginsConfig[$key]['active']=='y' && is_dir( $dir ) && $upDir = opendir( $dir )) {
+					if( $this->isPluginInstalled($key) && is_dir( $dir ) && $upDir = opendir( $dir )) {
 						while( FALSE !== ( $file = readdir( $upDir ))) {
 							if( is_file( $dir.$file )) {
 								$upVersion = str_replace( array(".php",".yaml"), "", $file );
@@ -511,7 +511,6 @@ class BitInstaller extends BitSystem {
 
 				$type = key( $pUpgradeHash[$i] );
 				$step = &$pUpgradeHash[$i][$type];
-				
 				switch( $type ) {
 					case 'DATADICT':
 						for( $j = 0; $j < count( $step ); $j++ ) {
@@ -530,9 +529,9 @@ class BitInstaller extends BitSystem {
 										}
 										if(!empty($tables)){
 											foreach( $create as $tableName ) {
-												if(!empty($table[$tableName])){
+												if(!empty($tables[$tableName])){
 													$completeTableName = $tablePrefix.$tableName;
-													$sql = $dict->CreateTableSQL( $completeTableName, $table[$tableName], 'REPLACE' );
+													$sql = $dict->CreateTableSQL( $completeTableName, $tables[$tableName], 'REPLACE' );
 													if( $sql && ( $dict->ExecuteSQLArray( $sql, FALSE ) > 0 ) ) {
 													} else {
 														$errors[] = 'Failed to create '.$completeTableName;
