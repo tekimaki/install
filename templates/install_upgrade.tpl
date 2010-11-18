@@ -76,11 +76,11 @@
 						{foreach from=$upgrade item=data key=version}
 							<dt>{$data.version}</dt>
 							<dd>{$data.description}</dd>
-							{if $errors.$plugin.$version}
+							{if $plugin_errors.$plugin.$version}
 								<p class="error">SQL errors that occurred during the {$version} upgrade:<br />
 									<kbd>
-										{if $errors.$plugin.$version.failedcommands}
-											{foreach from=$errors.$plugin.$version.failedcommands item=command}
+										{if $plugin_errors.$plugin.$version.failedcommands}
+											{foreach from=$plugin_errors.$plugin.$version.failedcommands item=command}
 												{$command}<br />
 											{/foreach}
 										{/if}
