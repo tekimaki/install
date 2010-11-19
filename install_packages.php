@@ -217,6 +217,15 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 			if( !empty( $packageHash['plugins'] ) && !empty( $_REQUEST['package_plugins'][$package] ) ){
 				foreach( $packageHash['plugins'] as $pluginGuid=>$pluginHash ){
 					if( in_array( $pluginGuid, $_REQUEST['package_plugins'][$package] ) ){
+						// expunge plugins content
+						if( in_array( 'content', $removeActions ) ) {
+							$gBitInstaller->expungePluginContent( $pluginHash, $method, $removeActions );
+						}
+						// expunge plugin settings
+						if( in_array( 'settings', $removeActions ) ) {
+							$gBitInstaller->expungePluginSettings( $pluginHash, $method, $removeActions );
+						}
+
 						// @TODO debug these calls - make sure pluginHash can be submitted
 						// generate all the tables's
 						$gBitInstaller->installPluginTables( $pluginHash, $method, $removeActions );

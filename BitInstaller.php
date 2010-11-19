@@ -857,11 +857,32 @@ class BitInstaller extends BitSystem {
 	}
 
 	function installPluginTables( $pPluginHash, $pMethod, $pRemoveActions ){
+		global $gBitSystem;
+
 		$installedTables = $this->getInstalledTables();
-		// @TODO implement checks to see is service is installed or being reinstalled or dropped
-		// @see installPackageTables 
-		$build = 'NEW';
-		// Install tables - $build is empty when we don't pick tables, when un / reinstalling packages
+
+		$plugin = $pPluginHash['guid'];
+
+		// work out what we're going to do with this plugin
+		if ( $pMethod == 'install' && ( $_SESSION['first_install'] || !$gBitSystem->isPluginInstalled($plugin) ) ) {
+			$build = array( 'NEW' );
+		} elseif( $pMethod == "reinstall" && $gBitSystem->isPluginInstalled($plugin) && in_array( 'tables', $pRemoveActions )) {
+			// only set $build if we want to reset the tables - this allows us to reset a plugin to it's starting values without deleting any content
+			$build = array( 'REPLACE' );
+		} elseif( $pMethod == "uninstall" && $gBitSystem->isPluginInstalled($plugin) && in_array( 'tables', $pRemoveActions )) {
+			$build = array( 'DROP' );
+		}
+		// If we use MySql and not DROP anything
+		// set correct storage engine to use
+		if( isset( $_SESSION['use_innodb'] ) && isset( $build ) &&  $build['0'] != 'DROP' ){
+			if( $_SESSION['use_innodb'] == TRUE) {
+				$build = array_merge($build, array('MYSQL' => 'ENGINE=INNODB'));
+			} else {
+				$build = array_merge($build, array('MYSQL' => 'ENGINE=MYISAM'));
+			}
+		}
+
+		// Install tables - $build is empty when we don't pick tables, when un / reinstalling plugins
 		if( !empty( $pPluginHash['tables'] ) && is_array( $pPluginHash['tables'] ) && !empty( $build )) {
 			foreach( $pPluginHash['tables'] as $tableName=>$tableHash ) {
 				if( (!empty( $installedTables['present'][$pPluginHash['package']] ) && !in_array( $tableName, $installedTables['present'][$pPluginHash['package']] )) ||
@@ -983,6 +1004,31 @@ class BitInstaller extends BitSystem {
 	}
 
 	/**
+	 * expungePluginSettings
+	 */
+	function expungePluginSettings( $pPluginHash, $pMethod, $gRemoveActions ) {
+		$tablePrefix = $this->getTablePrefix();
+		
+		// Delete permissions of this plugin
+		// TODO: We should add an optional plugin_guid
+		// to the permissions table so we don't have to 
+		// loop over these. We risk missing ones that were
+		// deleted from the package this way.
+		$query = "DELETE FROM `".$tablePrefix."users_group_permissions` WHERE `perm_name` IN (".implode( ',',array_fill( 0,count( $pPluginHash['permissions'] ),'?' )).")";
+		$bindVars = array_keys($pPluginHash['permissions']);
+		$result = $this->mDb->query($query, $bindVars);
+		$query = "DELETE FROM `".$tablePrefix."users_permissions` WHERE `perm_name` IN (".implode( ',',array_fill( 0,count( $pPluginHash['permissions'] ),'?' )).")";
+		$result = $this->mDb->query($query, $bindVars);
+
+		// Delete api hooks of this plugin
+		$query = "DELETE FROM `".$tablePrefix."package_plugins_api_map` WHERE `plugin_guid` = ?";
+		$result = $this->mDb->query($query, array($pPluginHash['guid']));
+
+		// TODO: Are there other settings we should be nuking?
+		// kernel_config things?
+	}
+
+	/**
 	 * expungePackageSettings
 	 */
 	function expungePackageSettings( $pPackageHash, $pMethod, $pRemoveActions ){
@@ -1040,6 +1086,16 @@ class BitInstaller extends BitSystem {
 			$this->mErrors[] = "Error deleting registration of package ". $package;
 			$this->mFailedCommands[] = $delete2." ".$package;
 		}
+	}
+
+	/**
+	 * expungePluginContent
+	 */
+	function expungePluginContent( $pPluginHash, $pMethod, $pRemoveActions ) {
+	    global $gLibertySystem;
+
+	    // TODO: We need to load up the content the plugin
+	    // is associated with and call delete over each of those.
 	}
 
 	/**
