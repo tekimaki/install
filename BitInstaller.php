@@ -1114,6 +1114,7 @@ class BitInstaller extends BitSystem {
 				if( $rmContentIds = $this->mDb->getCol( $query, array( $ctype )) ){
 					// simple way to expunge content and cascade related data - call expunge, duh
 					foreach( $rmContentIds as $contentId ) {
+                                                require_once(BIT_ROOT_PATH.$contentType['handler_package'].'/'.$contentType['handler_file']);
 						$obj = new $contentType['handler_class']( NULL, $contentId );
 						$obj->load();
 						if( $obj->isValid() ){
