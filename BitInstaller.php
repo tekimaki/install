@@ -329,16 +329,6 @@ class BitInstaller extends BitSystem {
 	}
 
 	/**
-	 * isInstalled 
-	 * 
-	 * @access public
-	 * @return TRUE on success, FALSE on failure - mErrors will contain reason for failure
-	 */
-	function isInstalled( $pPackage = 'kernel' ) {
-		return( !empty( $this->mPackages[$pPackage] ));
-	}
-
-	/**
 	 * getWebServerUid set global wwwuser and wwwgroup
 	 * 
 	 * @access public

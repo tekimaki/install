@@ -58,7 +58,7 @@ foreach( $gBitInstaller->mPermissionsSchema as $perm => $permHash ){
 $insPerms = $delPerms = array();
 foreach( $gBitInstaller->mPermissionsSchema as $perm => $permHash ){
 	if( !in_array( $perm, array_keys( $bitPerms ))) {
-		if( $gBitInstaller->isInstalled( $permHash['package'] )) {
+		if( $gBitInstaller->isPackageInstalled( $permHash['package'] )) {
 			$insPerms[$perm] = $permHash;
 		}
 	}

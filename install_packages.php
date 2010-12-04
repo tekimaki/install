@@ -102,7 +102,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		// When using MySql and installing further packages after first install
 		// check to see what storage engine in use, InnoDb or MyIsam,
 		// so we don't end up with mixed table types.
-		if( $gBitInstaller->isInstalled() ) {
+		if( $gBitInstaller->isPackageInstalled('kernel') ) {
 			global $gBitDbType;
 			if( preg_match( '/mysql/', $gBitDbType )) {
 				$_SESSION['use_innodb'] = FALSE;
