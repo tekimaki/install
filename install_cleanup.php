@@ -58,7 +58,10 @@ foreach( $gBitInstaller->mPermissionsSchema as $perm => $permHash ){
 $insPerms = $delPerms = array();
 foreach( $gBitInstaller->mPermissionsSchema as $perm => $permHash ){
 	if( !in_array( $perm, array_keys( $bitPerms ))) {
-		if( $gBitInstaller->isPackageInstalled( $permHash['package'] )) {
+		// require the package or plugin be installed to be processed
+		if( $gBitInstaller->isPackageInstalled( $permHash['package'] ) &&											// package check
+			( empty( $permHash['plugin_guid'] ) || $gBitInstaller->isPluginInstalled( $permHash['plugin_guid'] ))	// plugin check
+		){
 			$insPerms[$perm] = $permHash;
 		}
 	}
