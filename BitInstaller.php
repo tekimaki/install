@@ -1180,7 +1180,12 @@ class BitInstaller extends BitSystem {
 		global $gBitSystem;
 		
 		$pPackagePluginHash['active'] = 'y';
-		$gBitSystem->storePlugin( $pPackagePluginHash );
+		if( !$gBitSystem->storePlugin( $pPackagePluginHash ) ){
+			// this is a total shit hack to try to get some sort of message up to the installer the error handling in here completely sucks it
+			$this->mErrors = array_merge( $this->mErrors, $gBitSystem->mErrors );
+			$this->mFailedCommands[] = "Install of plugin: ".$pPackagePluginHash['guid']." totally failed. Good luck.";
+			vd( $this->mErrors );
+		}
 	}
 
 	function setPackageActive( $pPackageHash ){

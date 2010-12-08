@@ -438,7 +438,7 @@ if( !empty( $_REQUEST['cancel'] ) ) {
 		$gBitSmarty->assign( 'packageList', $packageList );
 
 		// enter some log information to say we've initialised the system
-		if( empty( $gBitInstaller->mFailedCommands ) ) {
+		if( empty( $gBitInstaller->mFailedCommands ) && empty( $gBitInstaller->mErrors ) ) {
 			$logHash['action_log'] = array(
 				'user_id' => ROOT_USER_ID,
 				'title' => 'System Installation',
