@@ -432,7 +432,9 @@ class BitInstaller extends BitSystem {
 				} else {
 					// if the upgrade ended without incidence, we store the package version.
 					// this way any successfully applied upgrade can only be applied once.
-					$this->storeVersion( $pPackage, $version );
+					if( !$this->storeVersion( $pPackage, $version ) ){
+						return $this->mErrors;
+					}
 				}
 			}
 		}
